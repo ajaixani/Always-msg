@@ -6,6 +6,8 @@ import { streamChat } from '../llm/llmClient';
 import { startRecording, MicPermissionError } from '../audio/micCapture';
 import { createVAD } from '../audio/vad';
 import { isSpeechAPIAvailable, createSpeechSession, transcribeBlob } from '../audio/asrClient';
+import { speak } from '../audio/ttsClient';
+import { ttsPlayer } from '../audio/ttsPlayer';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import GroupSheet from '../components/GroupSheet';
@@ -39,6 +41,8 @@ export default function ChatView() {
     const setVadActive = useAppStore((s) => s.setVadActive);
     const setListening = useAppStore((s) => s.setListening);
     const setMicError = useAppStore((s) => s.setMicError);
+    const setTTSPlaying = useAppStore((s) => s.setTTSPlaying);
+    const setTTSLevel = useAppStore((s) => s.setTTSLevel);
 
     // ── Thread list state ────────────────────────────────────────────
     const [threads, setThreads] = useState([]);   // all threads
@@ -53,8 +57,9 @@ export default function ChatView() {
 
     const messagesEndRef = useRef(null);
     const speechSessionRef = useRef(null);   // Web Speech API session handle
-    const recorderRef = useRef(null);        // MediaRecorder handle (Whisper path)
-    const vadLoopRef = useRef(null);         // live-mode VAD handle
+    const recorderRef = useRef(null);   // MediaRecorder handle (Whisper path)
+    const vadLoopRef = useRef(null);   // live-mode VAD handle
+    const ttsHandleRef = useRef(null);   // current TTS play handle → .stop()
 
     // Contacts in the active thread
     const threadContacts = activeThread
@@ -131,6 +136,9 @@ export default function ChatView() {
     /* ── PTT: record start ─────────────────────────────────────────── */
     const handleRecordStart = useCallback(async () => {
         if (isStreaming) return;
+        // Interrupt any playing TTS immediately
+        ttsHandleRef.current?.stop();
+        ttsHandleRef.current = null;
         setMicError(null);
         setRecording(true);
 
@@ -208,7 +216,12 @@ export default function ChatView() {
             vadLoopRef.current = createVAD({
                 stream,
                 sensitivity,
-                onSpeechStart: () => setVadActive(true),
+                onSpeechStart: () => {
+                    // Interrupt TTS immediately when user speaks in live mode
+                    ttsHandleRef.current?.stop();
+                    ttsHandleRef.current = null;
+                    setVadActive(true);
+                },
                 onSpeechEnd: async () => {
                     setVadActive(false);
                     if (useWhisper && recorder) {
@@ -291,6 +304,21 @@ export default function ChatView() {
                     ]);
                     accumulated = '';
                     setStreamingText('');
+
+                    // ── TTS: speak the assistant reply ──────────────
+                    const textToSpeak = fullText || saved.content || '';
+                    if (textToSpeak && settings?.ttsEndpoint?.trim()) {
+                        try {
+                            const handle = await speak(textToSpeak, settings, {
+                                onPlay: () => setTTSPlaying(true),
+                                onStop: () => setTTSPlaying(false),
+                                onLevel: (rms) => setTTSLevel(rms),
+                            });
+                            ttsHandleRef.current = handle;
+                        } catch (err) {
+                            console.warn('[TTS]', err.message);
+                        }
+                    }
                 },
                 onError: async (err) => {
                     const errMsg = await addMessage(activeThread.id, 'assistant', `⚠️ ${err.message}`);

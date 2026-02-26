@@ -50,6 +50,8 @@ export default function SettingsView() {
     const contextWindowSize = Number(settings.contextWindowSize ?? 20);
     const asrEndpoint = settings.asrEndpoint ?? '';
     const asrModel = settings.asrModel ?? 'whisper-1';
+    const ttsVoice = settings.ttsVoice ?? 'af_heart';
+    const ttsModel = settings.ttsModel ?? 'kokoro';
 
     return (
         <div className={styles.container}>
@@ -112,6 +114,37 @@ export default function SettingsView() {
                         options={TTS_OPTIONS}
                         value={ttsProvider}
                         onChange={(v) => update('ttsProvider', v)}
+                    />
+                </div>
+
+                <div className={styles.field}>
+                    <label htmlFor="settings-tts-voice" className={styles.label}>
+                        Voice
+                        <span className={styles.labelNote}>browse voices at <em>/v1/audio/voices</em></span>
+                    </label>
+                    <input
+                        id="settings-tts-voice"
+                        type="text"
+                        className={styles.input}
+                        placeholder="af_heart"
+                        value={ttsVoice}
+                        onChange={(e) => setSetting('ttsVoice', e.target.value)}
+                        onBlur={(e) => updateNow('ttsVoice', e.target.value)}
+                        autoComplete="off"
+                    />
+                </div>
+
+                <div className={styles.field}>
+                    <label htmlFor="settings-tts-model" className={styles.label}>Model</label>
+                    <input
+                        id="settings-tts-model"
+                        type="text"
+                        className={styles.input}
+                        placeholder="kokoro"
+                        value={ttsModel}
+                        onChange={(e) => setSetting('ttsModel', e.target.value)}
+                        onBlur={(e) => updateNow('ttsModel', e.target.value)}
+                        autoComplete="off"
                     />
                 </div>
 

@@ -67,6 +67,8 @@ export async function seedDefaultSettings() {
         { key: 'activeMode', value: 'push' }, // 'push' | 'live'
         { key: 'asrEndpoint', value: '' },     // blank = use Web Speech API
         { key: 'asrModel', value: 'whisper-1' },
+        { key: 'ttsVoice', value: 'af_heart' },
+        { key: 'ttsModel', value: 'kokoro' },
     ];
 
     await db.transaction('rw', db.settings, async () => {

@@ -32,6 +32,10 @@ import { create } from 'zustand';
  *   isListening: boolean          — live mode VAD loop active
  *   vadActive:   boolean          — VAD currently detecting speech
  *   micError:    string | null    — last mic/ASR error message
+ *
+ * ── tts slice ────────────────────────────────────────────────────
+ *   isTTSPlaying: boolean         — TTS audio playing
+ *   ttsLevel:     number          — RMS level for spectrograph (0–1)
  */
 const useAppStore = create((set) => ({
     // ── ui ──────────────────────────────────────────────────────────
@@ -99,6 +103,13 @@ const useAppStore = create((set) => ({
     setListening: (flag) => set({ isListening: flag }),
     setVadActive: (flag) => set({ vadActive: flag }),
     setMicError: (msg) => set({ micError: msg }),
+
+    // ── tts ──────────────────────────────────────────────────────────
+    isTTSPlaying: false,
+    ttsLevel: 0,
+
+    setTTSPlaying: (flag) => set({ isTTSPlaying: flag }),
+    setTTSLevel: (rms) => set({ ttsLevel: rms }),
 }));
 
 export default useAppStore;
