@@ -34,10 +34,13 @@ const useAppStore = create((set) => ({
     activeThreadId: null,        // number | null
     activeContactId: null,       // number | null
 
+    activeThreadTitle: '',
+
     setActiveMode: (mode) => set({ activeMode: mode }),
     setActiveView: (view) => set({ activeView: view }),
     setActiveThreadId: (id) => set({ activeThreadId: id }),
     setActiveContactId: (id) => set({ activeContactId: id }),
+    setActiveThreadTitle: (title) => set({ activeThreadTitle: title }),
     // ContactSheet state
     contactSheetOpen: false,
     editingContactId: null,

@@ -24,6 +24,19 @@ export async function getMessages(threadId, limit) {
 }
 
 /**
+ * Get the most recent message in a thread (for preview text in thread list).
+ * @param {number} threadId
+ * @returns {Promise<Message|undefined>}
+ */
+export async function getLastMessage(threadId) {
+    const all = await db.messages
+        .where('threadId')
+        .equals(threadId)
+        .sortBy('timestamp');
+    return all[all.length - 1];
+}
+
+/**
  * Persist a new message to a thread.
  * @param {number} threadId
  * @param {'user'|'assistant'|'system'} role

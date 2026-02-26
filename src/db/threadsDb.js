@@ -1,6 +1,41 @@
 import db from './db.js';
 
 /**
+ * Get all threads ordered by updatedAt descending (most recent first).
+ * @returns {Promise<Thread[]>}
+ */
+export async function getAllThreads() {
+    return db.threads.orderBy('updatedAt').reverse().toArray();
+}
+
+/**
+ * Create a group thread with multiple contacts.
+ * @param {number[]} contactIds
+ * @param {string} [title]
+ * @returns {Promise<Thread>}
+ */
+export async function createGroupThread(contactIds, title = '') {
+    const now = Date.now();
+    const id = await db.threads.add({
+        title,
+        contactIds: contactIds.join(','),
+        createdAt: now,
+        updatedAt: now,
+        seedCrystal: null,
+    });
+    return db.threads.get(id);
+}
+
+/**
+ * Update the title of a thread.
+ * @param {number} threadId
+ * @param {string} title
+ */
+export async function updateThreadTitle(threadId, title) {
+    await db.threads.update(threadId, { title });
+}
+
+/**
  * threadsDb — helpers for the threads table.
  */
 
