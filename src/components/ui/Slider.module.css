@@ -1,0 +1,71 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.labelRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+}
+
+.value {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-accent);
+    min-width: 2.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Custom range track via appearance:none + linear-gradient */
+.input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: var(--radius-full);
+    border: none;
+    outline: none;
+    cursor: pointer;
+    background: linear-gradient(to right,
+            var(--color-accent) 0%,
+            var(--color-accent) var(--fill-pct, 50%),
+            var(--color-bg-surface) var(--fill-pct, 50%),
+            var(--color-bg-surface) 100%);
+}
+
+/* Thumb — Webkit */
+.input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-text-primary);
+    box-shadow: 0 0 0 2px var(--color-bg-elevated), var(--shadow-sm);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    cursor: grab;
+}
+
+.input::-webkit-slider-thumb:active {
+    transform: scale(1.2);
+    cursor: grabbing;
+}
+
+/* Thumb — Firefox */
+.input::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-text-primary);
+    box-shadow: 0 0 0 2px var(--color-bg-elevated), var(--shadow-sm);
+    cursor: grab;
+}

@@ -11,6 +11,8 @@ import { create } from 'zustand';
  *   activeView: 'chat' | 'contacts' | 'settings'
  *   activeThreadId: number | null
  *   activeContactId: number | null
+ *   contactSheetOpen: boolean
+ *   editingContactId: number | null
  *
  * ── contacts slice ─────────────────────────────────────────────
  *   contacts: Contact[]         — in-memory cache, synced from IndexedDB
@@ -32,6 +34,13 @@ const useAppStore = create((set) => ({
     setActiveView: (view) => set({ activeView: view }),
     setActiveThreadId: (id) => set({ activeThreadId: id }),
     setActiveContactId: (id) => set({ activeContactId: id }),
+    // ContactSheet state
+    contactSheetOpen: false,
+    editingContactId: null,
+    openContactSheet: (contactId = null) =>
+        set({ contactSheetOpen: true, editingContactId: contactId }),
+    closeContactSheet: () =>
+        set({ contactSheetOpen: false, editingContactId: null }),
 
     // ── contacts ────────────────────────────────────────────────────
     contacts: [],

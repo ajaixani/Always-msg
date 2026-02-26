@@ -1,0 +1,91 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    animation: fadeIn var(--transition-fast) ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.sheet {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--color-bg-elevated);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border: 1px solid var(--color-border);
+    border-bottom: none;
+    max-height: 90dvh;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp var(--transition-normal) cubic-bezier(0.32, 0.72, 0, 1);
+    /* Safe area at bottom for notched phones */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.fullHeight {
+    max-height: 95dvh;
+    max-height: 95vh;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0.6;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Drag handle area */
+.handle {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    padding: var(--space-3) 0 var(--space-2);
+}
+
+.handleBar {
+    width: 36px;
+    height: 4px;
+    background: var(--color-border-strong);
+    border-radius: var(--radius-full);
+}
+
+/* Header below handle */
+.header {
+    flex-shrink: 0;
+    padding: 0 var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+/* Scrollable content area */
+.content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-5);
+}

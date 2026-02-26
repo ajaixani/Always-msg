@@ -1,0 +1,182 @@
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+/* ── Avatar + Name row ─────────────────────────────────────── */
+.avatarRow {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+}
+
+/* ── Field group ───────────────────────────────────────────── */
+.fieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+}
+
+.input {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    width: 100%;
+    transition: border-color var(--transition-fast);
+}
+
+.input:focus {
+    border-color: var(--color-accent);
+    outline: none;
+}
+
+.input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.textarea {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    width: 100%;
+    transition: border-color var(--transition-fast);
+    resize: vertical;
+    min-height: 90px;
+    line-height: var(--line-height-relaxed);
+    font-family: var(--font-sans);
+}
+
+.textarea:focus {
+    border-color: var(--color-accent);
+    outline: none;
+}
+
+.textarea::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* ── Section header ────────────────────────────────────────── */
+.sectionHeader {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+}
+
+/* ── Password row (input + show/hide button) ───────────────── */
+.passwordRow {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.passwordRow .input {
+    padding-right: 44px;
+}
+
+.showHideBtn {
+    position: absolute;
+    right: var(--space-3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.showHideBtn:hover {
+    opacity: 1;
+}
+
+/* ── Error message ─────────────────────────────────────────── */
+.error {
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+    background: rgba(232, 96, 78, 0.1);
+    border: 1px solid rgba(232, 96, 78, 0.25);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+}
+
+/* ── Action buttons row ────────────────────────────────────── */
+.actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+}
+
+.actionsSpacer {
+    flex: 1;
+}
+
+.btn {
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    border: none;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast),
+        transform var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btnPrimary {
+    background: var(--color-accent);
+    color: #0d0d0d;
+}
+
+.btnPrimary:hover:not(:disabled) {
+    opacity: 0.88;
+}
+
+.btnGhost {
+    background: var(--color-bg-surface);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+
+.btnGhost:hover {
+    border-color: var(--color-border-strong);
+}
+
+.btnDanger {
+    background: rgba(232, 96, 78, 0.15);
+    color: var(--color-danger);
+    border: 1px solid rgba(232, 96, 78, 0.3);
+}
+
+.btnDanger:hover:not(:disabled) {
+    background: rgba(232, 96, 78, 0.25);
+}
