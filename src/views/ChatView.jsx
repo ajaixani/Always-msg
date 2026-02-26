@@ -11,6 +11,7 @@ import { ttsPlayer } from '../audio/ttsPlayer';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import GroupSheet from '../components/GroupSheet';
+import SpectrographMouth from '../components/SpectrographMouth';
 import styles from './ChatView.module.css';
 
 /** Format a timestamp as a relative label like "2m ago", "3h ago", "Mon" */
@@ -43,6 +44,7 @@ export default function ChatView() {
     const setMicError = useAppStore((s) => s.setMicError);
     const setTTSPlaying = useAppStore((s) => s.setTTSPlaying);
     const setTTSLevel = useAppStore((s) => s.setTTSLevel);
+    const isTTSPlaying = useAppStore((s) => s.isTTSPlaying);
 
     // ── Thread list state ────────────────────────────────────────────
     const [threads, setThreads] = useState([]);   // all threads
@@ -492,6 +494,13 @@ export default function ChatView() {
 
                     <div ref={messagesEndRef} />
                 </div>
+
+                {/* Spectrograph mouth visualizer */}
+                {activeThread && (
+                    <div className={styles.spectrographWrapper}>
+                        <SpectrographMouth size="small" active={isTTSPlaying} />
+                    </div>
+                )}
 
                 {/* Input */}
                 {activeThread && (

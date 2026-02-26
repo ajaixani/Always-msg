@@ -1,0 +1,45 @@
+/* SpectrographMouth.module.css */
+
+.wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    transition: opacity var(--transition-fast);
+}
+
+/* ── Small state: sits above the chat input bar ─────────────────── */
+.small {
+    padding: var(--space-1) 0;
+    background: transparent;
+    opacity: 0.75;
+}
+
+.small.active {
+    opacity: 1;
+}
+
+/* ── Large state: Phase 8 live mode centrepiece ─────────────────── */
+.large {
+    padding: var(--space-6) 0;
+    background: transparent;
+    opacity: 0.85;
+    width: 100%;
+}
+
+.large.active {
+    opacity: 1;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────────── */
+.canvas {
+    display: block;
+    border-radius: var(--radius-lg);
+    /* Soft glow that intensifies when active */
+    filter: drop-shadow(0 0 6px rgba(160, 220, 255, 0.15));
+    transition: filter 400ms ease;
+}
+
+.active .canvas {
+    filter: drop-shadow(0 0 14px rgba(160, 220, 255, 0.45));
+}

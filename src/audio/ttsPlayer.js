@@ -28,6 +28,11 @@ class TTSPlayer {
         this._levelRafId = null;
     }
 
+    /** Return the current AnalyserNode, or null if nothing is playing. */
+    getAnalyser() {
+        return this._analyser ?? null;
+    }
+
     /** Stop any current playback, abort any in-flight fetch. */
     stop() {
         this._abortCtrl?.abort();

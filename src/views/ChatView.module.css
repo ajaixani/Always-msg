@@ -254,6 +254,17 @@
     line-height: 1;
 }
 
+/* ── Spectrograph wrapper ────────────────────────────────────────── */
+.spectrographWrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0;
+    background: transparent;
+}
+
 /* ── Mobile: single-panel ──────────────────────────────────────── */
 @media (max-width: 640px) {
     .contactList {
