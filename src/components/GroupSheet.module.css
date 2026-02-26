@@ -1,0 +1,150 @@
+/* GroupSheet.module.css */
+
+.modeRow {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.modeBtn {
+    flex: 1;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border-strong);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.modeBtnActive {
+    background: var(--color-accent);
+    color: #000;
+    border-color: var(--color-accent);
+}
+
+.titleRow {
+    margin-bottom: var(--space-3);
+}
+
+.titleInput {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+}
+
+.hint {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-3);
+}
+
+.contactList {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-bottom: var(--space-5);
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.noContacts {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: var(--space-6);
+}
+
+.contactRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: left;
+    color: var(--color-text-primary);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.contactRow:hover {
+    background: var(--color-bg-surface);
+}
+
+.contactRowSelected {
+    background: var(--color-accent-dim) !important;
+    border-color: var(--color-accent) !important;
+}
+
+.contactRowDisabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.avatar {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.name {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.endpoint {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.check {
+    font-size: var(--font-size-base);
+    color: var(--color-accent);
+    font-weight: var(--font-weight-bold);
+    width: 20px;
+    text-align: center;
+}
+
+.createBtn {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-accent);
+    color: #000;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    border: none;
+    transition: opacity var(--transition-fast);
+}
+
+.createBtn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.createBtn:not(:disabled):hover {
+    opacity: 0.85;
+}
