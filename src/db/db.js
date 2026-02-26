@@ -65,6 +65,8 @@ export async function seedDefaultSettings() {
         { key: 'interruptThreshold', value: 0.6 },
         { key: 'contextWindowSize', value: 20 },
         { key: 'activeMode', value: 'push' }, // 'push' | 'live'
+        { key: 'asrEndpoint', value: '' },     // blank = use Web Speech API
+        { key: 'asrModel', value: 'whisper-1' },
     ];
 
     await db.transaction('rw', db.settings, async () => {

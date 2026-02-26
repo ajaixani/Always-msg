@@ -3,6 +3,9 @@ import useAppStore from '../state/useAppStore';
 import { getAllThreads, getOrCreateThread, createGroupThread, deleteThread, updateThreadTimestamp } from '../db/threadsDb';
 import { getMessages, addMessage, getLastMessage } from '../db/messagesDb';
 import { streamChat } from '../llm/llmClient';
+import { startRecording, MicPermissionError } from '../audio/micCapture';
+import { createVAD } from '../audio/vad';
+import { isSpeechAPIAvailable, createSpeechSession, transcribeBlob } from '../audio/asrClient';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import GroupSheet from '../components/GroupSheet';
@@ -32,6 +35,10 @@ export default function ChatView() {
     const isStreaming = useAppStore((s) => s.isStreaming);
     const setStreaming = useAppStore((s) => s.setStreaming);
     const setActiveThreadTitle = useAppStore((s) => s.setActiveThreadTitle);
+    const setRecording = useAppStore((s) => s.setRecording);
+    const setVadActive = useAppStore((s) => s.setVadActive);
+    const setListening = useAppStore((s) => s.setListening);
+    const setMicError = useAppStore((s) => s.setMicError);
 
     // ── Thread list state ────────────────────────────────────────────
     const [threads, setThreads] = useState([]);   // all threads
@@ -45,6 +52,9 @@ export default function ChatView() {
     const [sheetOpen, setSheetOpen] = useState(false);
 
     const messagesEndRef = useRef(null);
+    const speechSessionRef = useRef(null);   // Web Speech API session handle
+    const recorderRef = useRef(null);        // MediaRecorder handle (Whisper path)
+    const vadLoopRef = useRef(null);         // live-mode VAD handle
 
     // Contacts in the active thread
     const threadContacts = activeThread
@@ -118,7 +128,130 @@ export default function ChatView() {
         await refreshThreads();
     }, [activeThread, setActiveThreadTitle, refreshThreads]);
 
+    /* ── PTT: record start ─────────────────────────────────────────── */
+    const handleRecordStart = useCallback(async () => {
+        if (isStreaming) return;
+        setMicError(null);
+        setRecording(true);
+
+        const asrEndpoint = settings?.asrEndpoint?.trim();
+        const useWhisper = !!asrEndpoint;
+
+        if (useWhisper || !isSpeechAPIAvailable()) {
+            // Whisper endpoint path: capture audio blob on stop
+            try {
+                recorderRef.current = await startRecording();
+            } catch (err) {
+                if (err instanceof MicPermissionError) setMicError(err.message);
+                else setMicError(`Mic error: ${err.message}`);
+                setRecording(false);
+            }
+        } else {
+            // Web Speech API path: recognition runs during hold
+            speechSessionRef.current = createSpeechSession({
+                onResult: (transcript) => {
+                    if (transcript) handleSend(transcript);
+                    speechSessionRef.current = null;
+                },
+                onError: (err) => {
+                    setMicError(err.message);
+                    speechSessionRef.current = null;
+                },
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isStreaming, settings]);
+
+    /* ── PTT: record stop ──────────────────────────────────────────── */
+    const handleRecordStop = useCallback(async () => {
+        setRecording(false);
+
+        // Web Speech API path — stop recognition, result comes via onResult callback
+        if (speechSessionRef.current) {
+            speechSessionRef.current.stop();
+            speechSessionRef.current = null;
+            return;
+        }
+
+        // Whisper path — finalise blob and POST
+        if (recorderRef.current) {
+            try {
+                const blob = await recorderRef.current.stop();
+                recorderRef.current = null;
+                const transcript = await transcribeBlob(blob, settings);
+                if (transcript) handleSend(transcript);
+            } catch (err) {
+                setMicError(err.message);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settings]);
+
+    /* ── Live mode: VAD auto-listen loop ───────────────────────────── */
+    useEffect(() => {
+        const isLive = settings?.activeMode === 'live';
+        if (!isLive || !activeThread) {
+            vadLoopRef.current?.destroy();
+            vadLoopRef.current = null;
+            setListening(false);
+            return;
+        }
+
+        let recorder = null;
+        let session = null;
+        const sensitivity = Number(settings?.vadSensitivity ?? 0.5);
+        const asrEndpoint = settings?.asrEndpoint?.trim();
+        const useWhisper = !!asrEndpoint;
+
+        async function startLiveListening(stream) {
+            setListening(true);
+            vadLoopRef.current = createVAD({
+                stream,
+                sensitivity,
+                onSpeechStart: () => setVadActive(true),
+                onSpeechEnd: async () => {
+                    setVadActive(false);
+                    if (useWhisper && recorder) {
+                        const blob = await recorder.stop();
+                        recorder = null;
+                        try {
+                            const text = await transcribeBlob(blob, settings);
+                            if (text) handleSend(text);
+                        } catch (err) { setMicError(err.message); }
+                    } else if (!useWhisper && session) {
+                        session.stop();
+                        session = null;
+                    }
+                },
+            });
+
+            if (useWhisper) {
+                recorder = await startRecording();
+            } else if (isSpeechAPIAvailable()) {
+                session = createSpeechSession({
+                    onResult: (t) => { if (t) handleSend(t); },
+                    onError: (e) => setMicError(e.message),
+                });
+            }
+        }
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(startLiveListening)
+            .catch((err) => setMicError(err.message));
+
+        return () => {
+            vadLoopRef.current?.destroy();
+            vadLoopRef.current = null;
+            setListening(false);
+            setVadActive(false);
+            recorder?.stop().catch(() => { });
+            session?.stop();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeThread, settings?.activeMode, settings?.vadSensitivity]);
+
     /* ── Send a message (solo + group) ────────────────────────────── */
+
     const handleSend = useCallback(async (text) => {
         if (!activeThread || !threadContacts.length || isStreaming) return;
 
@@ -336,6 +469,8 @@ export default function ChatView() {
                 {activeThread && (
                     <ChatInput
                         onSend={handleSend}
+                        onRecordStart={handleRecordStart}
+                        onRecordStop={handleRecordStop}
                         disabled={isStreaming}
                         placeholder={`Message ${activeThread && threadTitle(activeThread)}…`}
                     />

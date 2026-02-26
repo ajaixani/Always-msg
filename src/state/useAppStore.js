@@ -26,6 +26,12 @@ import { create } from 'zustand';
  * ── llm slice ──────────────────────────────────────────────────
  *   isStreaming: boolean          — true while an LLM response is in flight
  *   streamingMessageId: number | null  — DB id of the in-progress assistant msg
+ *
+ * ── audio slice ─────────────────────────────────────────────────
+ *   isRecording: boolean          — PTT button is held
+ *   isListening: boolean          — live mode VAD loop active
+ *   vadActive:   boolean          — VAD currently detecting speech
+ *   micError:    string | null    — last mic/ASR error message
  */
 const useAppStore = create((set) => ({
     // ── ui ──────────────────────────────────────────────────────────
@@ -82,6 +88,17 @@ const useAppStore = create((set) => ({
 
     setStreaming: (flag) => set({ isStreaming: flag }),
     setStreamingMessageId: (id) => set({ streamingMessageId: id }),
+
+    // ── audio ────────────────────────────────────────────────────────
+    isRecording: false,
+    isListening: false,
+    vadActive: false,
+    micError: null,
+
+    setRecording: (flag) => set({ isRecording: flag }),
+    setListening: (flag) => set({ isListening: flag }),
+    setVadActive: (flag) => set({ vadActive: flag }),
+    setMicError: (msg) => set({ micError: msg }),
 }));
 
 export default useAppStore;

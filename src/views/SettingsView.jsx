@@ -48,6 +48,8 @@ export default function SettingsView() {
     const vadSensitivity = Number(settings.vadSensitivity ?? 0.5);
     const interruptThreshold = Number(settings.interruptThreshold ?? 0.6);
     const contextWindowSize = Number(settings.contextWindowSize ?? 20);
+    const asrEndpoint = settings.asrEndpoint ?? '';
+    const asrModel = settings.asrModel ?? 'whisper-1';
 
     return (
         <div className={styles.container}>
@@ -169,6 +171,38 @@ export default function SettingsView() {
                         step={0.05}
                         onChange={(v) => update('interruptThreshold', v)}
                         format={(v) => v.toFixed(2)}
+                    />
+                </div>
+
+                <div className={styles.field}>
+                    <label htmlFor="settings-asr-endpoint" className={styles.label}>
+                        ASR Endpoint URL
+                        <span className={styles.labelNote}>optional — leave blank for Web Speech API (Chrome)</span>
+                    </label>
+                    <input
+                        id="settings-asr-endpoint"
+                        type="url"
+                        className={styles.input}
+                        placeholder="http://localhost:9000 (Whisper-compatible)"
+                        value={asrEndpoint}
+                        onChange={(e) => setSetting('asrEndpoint', e.target.value)}
+                        onBlur={(e) => updateNow('asrEndpoint', e.target.value)}
+                        inputMode="url"
+                        autoComplete="off"
+                    />
+                </div>
+
+                <div className={styles.field}>
+                    <label htmlFor="settings-asr-model" className={styles.label}>ASR Model</label>
+                    <input
+                        id="settings-asr-model"
+                        type="text"
+                        className={styles.input}
+                        placeholder="whisper-1"
+                        value={asrModel}
+                        onChange={(e) => setSetting('asrModel', e.target.value)}
+                        onBlur={(e) => updateNow('asrModel', e.target.value)}
+                        autoComplete="off"
                     />
                 </div>
             </section>
