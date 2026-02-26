@@ -22,6 +22,10 @@ import { create } from 'zustand';
  *   settings: Record<string, any>   — in-memory cache of key-value settings
  *   setSetting(key, value)
  *   bulkSetSettings(obj)
+ *
+ * ── llm slice ──────────────────────────────────────────────────
+ *   isStreaming: boolean          — true while an LLM response is in flight
+ *   streamingMessageId: number | null  — DB id of the in-progress assistant msg
  */
 const useAppStore = create((set) => ({
     // ── ui ──────────────────────────────────────────────────────────
@@ -68,6 +72,13 @@ const useAppStore = create((set) => ({
 
     bulkSetSettings: (obj) =>
         set((state) => ({ settings: { ...state.settings, ...obj } })),
+
+    // ── llm ─────────────────────────────────────────────────────────
+    isStreaming: false,
+    streamingMessageId: null,
+
+    setStreaming: (flag) => set({ isStreaming: flag }),
+    setStreamingMessageId: (id) => set({ streamingMessageId: id }),
 }));
 
 export default useAppStore;

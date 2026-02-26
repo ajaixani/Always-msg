@@ -1,0 +1,87 @@
+/* MessageBubble.module.css */
+
+.wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+    max-width: 82%;
+    margin-bottom: var(--space-3);
+    animation: bubbleIn 200ms ease;
+}
+
+@keyframes bubbleIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Alignment ─────────────────────────────────────────────────── */
+.userWrapper {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+    margin-left: auto;
+}
+
+.assistantWrapper {
+    align-self: flex-start;
+    flex-direction: row;
+    margin-right: auto;
+}
+
+/* ── Avatar ────────────────────────────────────────────────────── */
+.avatar {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-bottom: var(--space-1);
+}
+
+/* ── Bubble ────────────────────────────────────────────────────── */
+.bubble {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    line-height: var(--line-height-relaxed);
+    font-size: var(--font-size-base);
+    word-break: break-word;
+    white-space: pre-wrap;
+    position: relative;
+}
+
+.userBubble {
+    background: var(--color-bubble-user);
+    color: var(--color-text-primary);
+    border-bottom-right-radius: var(--radius-sm);
+}
+
+.assistantBubble {
+    background: var(--color-bg-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-bottom-left-radius: var(--radius-sm);
+}
+
+/* ── Content ───────────────────────────────────────────────────── */
+.content {
+    display: inline;
+}
+
+.empty {
+    color: var(--color-text-muted);
+    font-style: normal;
+}
+
+/* ── Streaming cursor ──────────────────────────────────────────── */
+.cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--color-accent);
+    border-radius: 1px;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 700ms step-end infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}

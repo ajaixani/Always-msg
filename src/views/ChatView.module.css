@@ -1,20 +1,196 @@
 /* ChatView.module.css */
-.container {
-    composes: container from '../styles/views.css';
+
+/* ── Two-panel shell ────────────────────────────────────────────── */
+.chatLayout {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    overflow: hidden;
 }
 
-.empty {
-    composes: empty from '../styles/views.css';
+/* ── Contact list (left sidebar) ────────────────────────────────── */
+.contactList {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border);
+    overflow-y: auto;
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+.contactItems {
+    list-style: none;
+    padding: var(--space-2) 0;
+}
+
+.contactItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    border-radius: 0;
+    transition: background var(--transition-fast);
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+}
+
+.contactItem:hover {
+    background: var(--color-bg-elevated);
+}
+
+.contactItemActive {
+    background: var(--color-accent-dim) !important;
+}
+
+.contactAvatar {
+    font-size: 26px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.contactMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.contactName {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contactEndpoint {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ── Empty state (no contacts) ─────────────────────────────────── */
+.emptyContacts {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-8) var(--space-6);
+    gap: var(--space-3);
+    flex: 1;
+    justify-content: center;
 }
 
 .emptyIcon {
-    composes: emptyIcon from '../styles/views.css';
+    font-size: 40px;
+    opacity: 0.4;
 }
 
 .emptyTitle {
-    composes: emptyTitle from '../styles/views.css';
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
 }
 
 .emptySubtext {
-    composes: emptySubtext from '../styles/views.css';
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+    max-width: 200px;
+}
+
+/* ── Conversation pane (right) ─────────────────────────────────── */
+.conversationPane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--color-bg);
+}
+
+/* ── Back button (mobile overlay header) ───────────────────────── */
+.backBtn {
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-accent);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    width: 100%;
+    text-align: left;
+}
+
+/* ── Messages area ─────────────────────────────────────────────── */
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ── Empty conversation state ──────────────────────────────────── */
+.conversationEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: var(--space-3);
+    flex: 1;
+    padding: var(--space-8);
+    animation: fadeIn 300ms ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.bigAvatar {
+    font-size: 56px;
+    line-height: 1;
+}
+
+/* ── Mobile: single-panel switching ───────────────────────────── */
+@media (max-width: 640px) {
+    .contactList {
+        width: 100%;
+        border-right: none;
+    }
+
+    .contactListHidden {
+        display: none;
+    }
+
+    .conversationPane {
+        width: 100%;
+    }
+
+    .conversationPaneHidden {
+        display: none;
+    }
+
+    .backBtn {
+        display: flex;
+    }
 }
