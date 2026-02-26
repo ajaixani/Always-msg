@@ -1,4 +1,4 @@
-/* ChatView.module.css */
+/* ChatView.module.css — Phase 4 */
 
 /* ── Two-panel shell ────────────────────────────────────────────── */
 .chatLayout {
@@ -8,22 +8,26 @@
     overflow: hidden;
 }
 
-/* ── Contact list (left sidebar) ────────────────────────────────── */
+/* ── Thread sidebar (left) ──────────────────────────────────────── */
 .contactList {
-    width: 280px;
+    width: 300px;
     flex-shrink: 0;
     border-right: 1px solid var(--color-border);
     overflow-y: auto;
     background: var(--color-bg);
     display: flex;
     flex-direction: column;
+    position: relative;
+    /* for FAB positioning */
 }
 
 .contactItems {
     list-style: none;
-    padding: var(--space-2) 0;
+    padding: var(--space-2) 0 80px;
+    /* bottom padding for FAB */
 }
 
+/* ── Thread row ─────────────────────────────────────────────────── */
 .contactItem {
     display: flex;
     align-items: center;
@@ -31,12 +35,11 @@
     width: 100%;
     padding: var(--space-3) var(--space-4);
     text-align: left;
-    border-radius: 0;
-    transition: background var(--transition-fast);
-    cursor: pointer;
     background: none;
     border: none;
     color: var(--color-text-primary);
+    transition: background var(--transition-fast);
+    cursor: pointer;
 }
 
 .contactItem:hover {
@@ -48,16 +51,20 @@
 }
 
 .contactAvatar {
-    font-size: 26px;
+    font-size: 22px;
     line-height: 1;
     flex-shrink: 0;
+    min-width: 32px;
+    text-align: center;
 }
 
 .contactMeta {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     overflow: hidden;
+    min-width: 0;
 }
 
 .contactName {
@@ -68,14 +75,85 @@
     text-overflow: ellipsis;
 }
 
-.contactEndpoint {
+.threadPreview {
     font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* ── Empty state (no contacts) ─────────────────────────────────── */
+/* ── Thread meta (time + delete) ───────────────────────────────── */
+.threadMeta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+.threadTime {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.deleteBtn {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.contactItem:hover .deleteBtn {
+    opacity: 1;
+}
+
+.deleteBtn:hover {
+    color: var(--color-danger);
+}
+
+/* ── FAB ────────────────────────────────────────────────────────── */
+.fab {
+    position: sticky;
+    bottom: calc(var(--space-4) + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    color: #000;
+    border: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    margin: 0 auto;
+    transition: transform var(--transition-fast), opacity var(--transition-fast);
+    z-index: 10;
+}
+
+.fab svg {
+    width: 22px;
+    height: 22px;
+}
+
+.fab:hover {
+    opacity: 0.88;
+    transform: translateX(-50%) scale(1.06);
+}
+
+.fab:active {
+    transform: translateX(-50%) scale(0.96);
+}
+
+/* ── Empty states ───────────────────────────────────────────────── */
 .emptyContacts {
     display: flex;
     flex-direction: column;
@@ -114,7 +192,7 @@
     background: var(--color-bg);
 }
 
-/* ── Back button (mobile overlay header) ───────────────────────── */
+/* ── Back button ────────────────────────────────────────────────── */
 .backBtn {
     display: none;
     align-items: center;
@@ -133,6 +211,12 @@
     text-align: left;
 }
 
+.backTitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* ── Messages area ─────────────────────────────────────────────── */
 .messages {
     flex: 1;
@@ -140,10 +224,9 @@
     padding: var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: 0;
 }
 
-/* ── Empty conversation state ──────────────────────────────────── */
+/* ── Conversation empty state ──────────────────────────────────── */
 .conversationEmpty {
     display: flex;
     flex-direction: column;
@@ -171,7 +254,7 @@
     line-height: 1;
 }
 
-/* ── Mobile: single-panel switching ───────────────────────────── */
+/* ── Mobile: single-panel ──────────────────────────────────────── */
 @media (max-width: 640px) {
     .contactList {
         width: 100%;

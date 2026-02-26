@@ -10,8 +10,15 @@
 }
 
 @keyframes bubbleIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ── Alignment ─────────────────────────────────────────────────── */
@@ -33,6 +40,21 @@
     line-height: 1;
     flex-shrink: 0;
     margin-bottom: var(--space-1);
+}
+
+/* ── Column wrapper (holds senderName + bubble + retry) ────────── */
+.bubbleCol {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: 100%;
+}
+
+/* ── Sender name label (group threads) ─────────────────────────── */
+.senderName {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    padding-left: var(--space-1);
 }
 
 /* ── Bubble ────────────────────────────────────────────────────── */
@@ -82,6 +104,36 @@
 }
 
 @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
+
+/* ── Error bubble ──────────────────────────────────────────────── */
+.errorBubble {
+    border-color: rgba(232, 96, 78, 0.4) !important;
+    background: rgba(232, 96, 78, 0.08) !important;
+}
+
+/* ── Retry button ──────────────────────────────────────────────── */
+.retryBtn {
+    align-self: flex-start;
+    font-size: var(--font-size-xs);
+    color: var(--color-accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-sm);
+    transition: opacity var(--transition-fast);
+}
+
+.retryBtn:hover {
+    opacity: 0.7;
 }
