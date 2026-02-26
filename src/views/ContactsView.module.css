@@ -1,0 +1,20 @@
+/* ContactsView.module.css */
+.container {
+    composes: container from '../styles/views.css';
+}
+
+.empty {
+    composes: empty from '../styles/views.css';
+}
+
+.emptyIcon {
+    composes: emptyIcon from '../styles/views.css';
+}
+
+.emptyTitle {
+    composes: emptyTitle from '../styles/views.css';
+}
+
+.emptySubtext {
+    composes: emptySubtext from '../styles/views.css';
+}

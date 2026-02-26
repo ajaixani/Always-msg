@@ -1,0 +1,39 @@
+/*
+ * Shared view CSS — used by ChatView, ContactsView, SettingsView via their own modules.
+ * Each view imports its own .module.css which composes from these patterns.
+ */
+
+.container {
+    padding: var(--space-4);
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    min-height: 50vh;
+    text-align: center;
+    padding: var(--space-8);
+}
+
+.emptyIcon {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+}
+
+.emptyTitle {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.emptySubtext {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    max-width: 260px;
+    line-height: var(--line-height-relaxed);
+}
