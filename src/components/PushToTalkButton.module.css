@@ -124,3 +124,11 @@
         transform: translateX(3px);
     }
 }
+.muted {
+    background: rgba(255, 100, 100, 0.1);
+    border-color: rgba(255, 100, 100, 0.3);
+}
+
+.muted .icon {
+    color: var(--color-danger, #e8604e);
+}

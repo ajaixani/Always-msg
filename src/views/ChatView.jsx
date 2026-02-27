@@ -92,15 +92,15 @@ export default function ChatView() {
     const [pendingImage, setPendingImage] = useState(null); // data URL | null
 
     // ── ASR mode + live toggle ────────────────────────────────────────
-    // asrMode: 'hold' = hold button to record | 'toggle' = tap once to start, tap again to stop
-    const [asrMode, setAsrMode] = useState('hold');
     const [isRecordingToggle, setIsRecordingToggle] = useState(false);
+    const [liveMuted, setLiveMuted] = useState(false);
 
     // Flip PUSH ↔ LIVE and persist immediately
     const toggleLiveMode = useCallback(() => {
         const next = (settings?.activeMode === 'live') ? 'push' : 'live';
         setSetting('activeMode', next);
         saveSetting('activeMode', next);
+        setLiveMuted(false); // reset mute on mode switch
     }, [settings?.activeMode, setSetting]);
 
     // Contacts in the active thread
@@ -247,6 +247,13 @@ export default function ChatView() {
         setRecording(false);
         setIsRecordingToggle(false);
 
+        // VAD cleanup for push mode single-shot tap
+        if (vadLoopRef.current && settings?.activeMode !== 'live') {
+            vadLoopRef.current.destroy();
+            vadLoopRef.current = null;
+            setVadActive(false);
+        }
+
         // Web Speech API path — stop recognition, result comes via onResult callback
         if (speechSessionRef.current) {
             speechSessionRef.current.stop();
@@ -268,17 +275,23 @@ export default function ChatView() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settings]);
 
-    /* ── Tap-to-toggle: single tap starts / second tap stops ──────── */
+    /* ── Tap-to-toggle / Single-shot VAD ───────────────────────────── */
     const handleMicTap = useCallback(async () => {
         if (isStreaming) return;
 
-        // Second tap → stop
+        const isLive = settings?.activeMode === 'live';
+        if (isLive) {
+            setLiveMuted(m => !m);
+            return;
+        }
+
+        // Second tap → stop early
         if (isRecordingToggle) {
             handleRecordStop();
             return;
         }
 
-        // First tap → start in toggle mode
+        // First tap → start single-shot VAD
         ttsHandleRef.current?.stop();
         ttsHandleRef.current = null;
         setMicError(null);
@@ -286,11 +299,26 @@ export default function ChatView() {
         setIsRecordingToggle(true);
 
         const asrEndpoint = settings?.asrEndpoint?.trim();
+        const sensitivity = Number(settings?.vadSensitivity ?? 0.5);
 
         if (asrEndpoint || !isSpeechAPIAvailable()) {
-            // Whisper path: start MediaRecorder, stop on second tap
+            // Whisper path: start MediaRecorder + VAD
             try {
-                recorderRef.current = await startRecording();
+                const recorder = await startRecording();
+                recorderRef.current = recorder;
+
+                vadLoopRef.current = createVAD({
+                    stream: recorder.stream,
+                    sensitivity,
+                    onSpeechStart: () => setVadActive(true),
+                    onSpeechEnd: () => {
+                        setVadActive(false);
+                        if (recorderRef.current === recorder) {
+                            handleRecordStop(); // finalize and send
+                        }
+                    },
+                    onLevel: (rms) => setTTSLevel(rms),
+                });
             } catch (err) {
                 if (err instanceof MicPermissionError) setMicError(err.message);
                 else setMicError(`Mic error: ${err.message}`);
@@ -298,22 +326,17 @@ export default function ChatView() {
                 setIsRecordingToggle(false);
             }
         } else {
-            // Web Speech API with continuous:true so it keeps listening until stop()
+            // Web Speech API: continuous=false acts as native single-shot VAD
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
-            recognition.continuous = true;
+            recognition.continuous = false; // auto-stops after silence
             recognition.interimResults = false;
             recognition.lang = navigator.language || 'en-US';
             recognition.maxAlternatives = 1;
 
-            let finalTranscript = '';
-
             recognition.onresult = (event) => {
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + ' ';
-                    }
-                }
+                const finalTranscript = event.results[0][0].transcript;
+                if (finalTranscript.trim()) handleSend(finalTranscript.trim());
             };
 
             recognition.onerror = (event) => {
@@ -328,12 +351,9 @@ export default function ChatView() {
                 setRecording(false);
                 setIsRecordingToggle(false);
                 speechSessionRef.current = null;
-                const text = finalTranscript.trim();
-                if (text) handleSend(text);
             };
 
             recognition.start();
-            // Store a stop handle compatible with handleRecordStop
             speechSessionRef.current = { stop: () => recognition.stop() };
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -342,7 +362,7 @@ export default function ChatView() {
     /* ── Live mode: VAD auto-listen loop ───────────────────────────── */
     useEffect(() => {
         const isLive = settings?.activeMode === 'live';
-        if (!isLive || !activeThread) {
+        if (!isLive || !activeThread || liveMuted) {
             vadLoopRef.current?.destroy();
             vadLoopRef.current = null;
             setListening(false);
@@ -857,10 +877,11 @@ export default function ChatView() {
                             <ChatInput
                                 onSend={handleSend}
                                 onTap={handleMicTap}
-                                onRecordStart={handleRecordStart}
-                                onRecordStop={handleRecordStop}
+                                onRecordStart={isLive ? undefined : handleRecordStart}
+                                onRecordStop={isLive ? undefined : handleRecordStop}
                                 disabled={isStreaming}
                                 placeholder={`Message ${threadTitle(activeThread)}…`}
+                                isMuted={isLive ? liveMuted : false}
                             />
                         </div>
                     </>

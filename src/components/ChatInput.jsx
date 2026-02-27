@@ -19,6 +19,7 @@ export default function ChatInput({
     onRecordStop,
     disabled = false,
     placeholder = 'Message…',
+    isMuted = false,
 }) {
     const [text, setText] = useState('');
     const textareaRef = useRef(null);
@@ -50,6 +51,7 @@ export default function ChatInput({
                 onRecordStart={onRecordStart}
                 onRecordStop={onRecordStop}
                 disabled={disabled}
+                isMuted={isMuted}
             />
 
             <textarea

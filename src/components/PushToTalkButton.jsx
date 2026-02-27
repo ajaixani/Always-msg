@@ -19,6 +19,7 @@ export default function PushToTalkButton({
     onRecordStart,
     onRecordStop,
     disabled = false,
+    isMuted = false,
 }) {
     const isRecording = useAppStore((s) => s.isRecording);
     const micError = useAppStore((s) => s.micError);
@@ -76,46 +77,68 @@ export default function PushToTalkButton({
     useEffect(() => () => clearTimeout(holdTimerRef.current), []);
 
     let stateClass = styles.idle;
-    if (micError) stateClass = styles.error;
+    if (disabled) stateClass = styles.disabled;
+    else if (isMuted) stateClass = styles.muted;
+    else if (micError) stateClass = styles.error;
     else if (isRecording && vadActive) stateClass = styles.speaking;
     else if (isRecording) stateClass = styles.recording;
 
     return (
         <button
-            className={`${styles.btn} ${stateClass} ${disabled ? styles.disabled : ''}`}
+            className={`${styles.btn} ${stateClass}`}
             onPointerDown={handleDown}
             onPointerUp={handleUp}
             onPointerCancel={handleUp}
             disabled={disabled}
             aria-label={
-                isRecording
-                    ? 'Recording — release to send (hold) or tap to stop'
-                    : 'Tap to speak (toggle) or hold for push-to-talk'
+                isMuted ? 'Mic is muted – tap to unmute'
+                    : isRecording
+                        ? 'Recording — release to send (hold) or tap to stop'
+                        : 'Tap to speak (toggle) or hold for push-to-talk'
             }
-            aria-pressed={isRecording}
+            aria-pressed={isRecording || !isMuted}
             id="push-to-talk-btn"
             style={{ touchAction: 'none' }}
-            title="Tap = toggle recording  •  Hold = push-to-talk"
+            title={isMuted ? 'Tap to unmute' : 'Tap = toggle recording  •  Hold = push-to-talk'}
         >
             {/* Pulsing ring while recording */}
             {isRecording && <span className={styles.ring} aria-hidden="true" />}
 
             {/* Mic icon */}
-            <svg
-                className={styles.icon}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-            >
-                <rect x="9" y="2" width="6" height="12" rx="3" />
-                <path d="M5 10a7 7 0 0 0 14 0" />
-                <line x1="12" y1="19" x2="12" y2="22" />
-                <line x1="8" y1="22" x2="16" y2="22" />
-            </svg>
+            {isMuted ? (
+                <svg
+                    className={styles.icon}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                >
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+                    <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+                    <line x1="12" y1="19" x2="12" y2="22" />
+                    <line x1="8" y1="22" x2="16" y2="22" />
+                </svg>
+            ) : (
+                <svg
+                    className={styles.icon}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                >
+                    <rect x="9" y="2" width="6" height="12" rx="3" />
+                    <path d="M5 10a7 7 0 0 0 14 0" />
+                    <line x1="12" y1="19" x2="12" y2="22" />
+                    <line x1="8" y1="22" x2="16" y2="22" />
+                </svg>
+            )}
         </button>
     );
 }
