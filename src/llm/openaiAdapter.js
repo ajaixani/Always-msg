@@ -17,7 +17,7 @@
  * @param {function} opts.onDone           — called with full accumulated text when stream ends
  * @param {function} opts.onError          — called with an Error on failure
  */
-export async function streamChat({ baseUrl, model, apiKey, messages, onToken, onDone, onError }) {
+export async function streamChat({ baseUrl, model, apiKey, messages, temperature, maxTokens, onToken, onDone, onError }) {
     const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const headers = {
@@ -36,6 +36,8 @@ export async function streamChat({ baseUrl, model, apiKey, messages, onToken, on
                 model,
                 messages,
                 stream: true,
+                temperature: temperature ?? 0.7,
+                ...(maxTokens ? { max_tokens: maxTokens } : {}),
             }),
         });
     } catch (err) {

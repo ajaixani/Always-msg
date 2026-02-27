@@ -265,6 +265,60 @@
     background: transparent;
 }
 
+/* ── Live Mode layout overrides ─────────────────────────────────── */
+.liveMode .messages {
+    opacity: 0;
+    pointer-events: none;
+    flex: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 350ms ease, max-height 350ms ease;
+}
+
+.liveMode .spectrographWrapper {
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Input row — wraps ChatInput + optional camera button ────────── */
+.inputRow {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+    padding: 0 var(--space-3) var(--space-2);
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* The .inputRow's flex child ChatInput should grow to fill available space */
+.inputRow> :last-child {
+    flex: 1;
+}
+
+/* ── Camera button (Phase 9 placeholder) ────────────────────────── */
+.cameraBtn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: not-allowed;
+    opacity: 0.45;
+    transition: opacity var(--transition-fast);
+}
+
+.cameraBtn svg {
+    width: 20px;
+    height: 20px;
+}
+
 /* ── Mobile: single-panel ──────────────────────────────────────── */
 @media (max-width: 640px) {
     .contactList {

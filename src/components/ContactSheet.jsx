@@ -28,11 +28,17 @@ const DEFAULT_LLM_CONFIG = {
     apiKey: '',
 };
 
+const DEFAULT_TTS_CONFIG = {
+    voice: '',   // blank = inherit global ttsVoice
+    endpoint: '',   // blank = inherit global ttsEndpoint
+};
+
 const DEFAULT_FORM = {
     name: '',
     avatar: '🤖',
     systemInstruction: '',
     llmConfig: { ...DEFAULT_LLM_CONFIG },
+    ttsConfig: { ...DEFAULT_TTS_CONFIG },
 };
 
 export default function ContactSheet({ open, onClose, contactId }) {
@@ -60,6 +66,7 @@ export default function ContactSheet({ open, onClose, contactId }) {
                     avatar: contact.avatar ?? '🤖',
                     systemInstruction: contact.systemInstruction ?? '',
                     llmConfig: { ...DEFAULT_LLM_CONFIG, ...(contact.llmConfig ?? {}) },
+                    ttsConfig: { ...DEFAULT_TTS_CONFIG, ...(contact.ttsConfig ?? {}) },
                 });
             }
         } else if (open && !isEdit) {
@@ -73,9 +80,10 @@ export default function ContactSheet({ open, onClose, contactId }) {
 
     // ── Field helpers ─────────────────────────────────────────────
     const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
-
     const setLlmField = (key, value) =>
         setForm((f) => ({ ...f, llmConfig: { ...f.llmConfig, [key]: value } }));
+    const setTtsField = (key, value) =>
+        setForm((f) => ({ ...f, ttsConfig: { ...f.ttsConfig, [key]: value } }));
 
     // ── Actions ───────────────────────────────────────────────────
     async function handleSave() {
@@ -236,6 +244,38 @@ export default function ContactSheet({ open, onClose, contactId }) {
                         </div>
                     </div>
                 )}
+
+                {/* ── TTS Override ────────────────────────────────── */}
+                <div className={styles.sectionHeader}>TTS Override
+                    <span className={styles.sectionNote}> — leave blank to use global defaults</span>
+                </div>
+
+                <div className={styles.fieldGroup}>
+                    <label htmlFor="contact-tts-voice" className={styles.label}>Voice</label>
+                    <input
+                        id="contact-tts-voice"
+                        type="text"
+                        className={styles.input}
+                        placeholder="af_heart (global default)"
+                        value={form.ttsConfig.voice}
+                        onChange={(e) => setTtsField('voice', e.target.value)}
+                        autoComplete="off"
+                    />
+                </div>
+
+                <div className={styles.fieldGroup}>
+                    <label htmlFor="contact-tts-endpoint" className={styles.label}>TTS Endpoint URL</label>
+                    <input
+                        id="contact-tts-endpoint"
+                        type="url"
+                        className={styles.input}
+                        placeholder="http://localhost:8880 (global default)"
+                        value={form.ttsConfig.endpoint}
+                        onChange={(e) => setTtsField('endpoint', e.target.value)}
+                        autoComplete="off"
+                        inputMode="url"
+                    />
+                </div>
 
                 {/* ── Error ──────────────────────────────────────── */}
                 {error && <p className={styles.error}>{error}</p>}

@@ -182,6 +182,19 @@ export default function SettingsView() {
                 <h2 className={styles.sectionTitle}>Audio / VAD</h2>
 
                 <div className={styles.field}>
+                    <label className={styles.label}>Active Mode</label>
+                    <SegmentedControl
+                        name="Active mode"
+                        options={[
+                            { value: 'push', label: 'Push-to-Talk' },
+                            { value: 'live', label: 'Live' },
+                        ]}
+                        value={settings.activeMode ?? 'push'}
+                        onChange={(v) => update('activeMode', v)}
+                    />
+                </div>
+
+                <div className={styles.field}>
                     <Slider
                         id="settings-vad-sensitivity"
                         label="VAD Sensitivity"

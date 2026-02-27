@@ -12,6 +12,7 @@ export default function AppShell() {
     const bulkSetSettings = useAppStore((s) => s.bulkSetSettings);
     const setContacts = useAppStore((s) => s.setContacts);
     const activeThreadTitle = useAppStore((s) => s.activeThreadTitle);
+    const settings = useAppStore((s) => s.settings);
 
     useEffect(() => {
         const view = location.pathname.replace('/', '') || 'chat';
@@ -42,10 +43,19 @@ export default function AppShell() {
         ? activeThreadTitle
         : (viewLabels[currentView] ?? 'Always');
 
+    const isLive = currentView === 'chat' && settings?.activeMode === 'live';
+
     return (
         <div className={styles.shell}>
             <header className={styles.header}>
-                <span className={styles.headerTitle}>{headerTitle}</span>
+                <span className={styles.headerTitle}>
+                    {headerTitle}
+                    {isLive && activeThreadTitle && (
+                        <span className={styles.liveBadge} aria-label="Live mode active">
+                            LIVE
+                        </span>
+                    )}
+                </span>
             </header>
 
             <main className={styles.content}>

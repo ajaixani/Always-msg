@@ -309,9 +309,16 @@ export default function ChatView() {
 
                     // ── TTS: speak the assistant reply ──────────────
                     const textToSpeak = fullText || saved.content || '';
-                    if (textToSpeak && settings?.ttsEndpoint?.trim()) {
+                    // Merge: contact-level ttsConfig wins over global settings
+                    const ttsEndpoint = contact.ttsConfig?.endpoint?.trim() || settings?.ttsEndpoint?.trim();
+                    if (textToSpeak && ttsEndpoint) {
+                        const ttsSettings = {
+                            ...settings,
+                            ttsEndpoint,
+                            ttsVoice: contact.ttsConfig?.voice?.trim() || settings?.ttsVoice || 'af_heart',
+                        };
                         try {
-                            const handle = await speak(textToSpeak, settings, {
+                            const handle = await speak(textToSpeak, ttsSettings, {
                                 onPlay: () => setTTSPlaying(true),
                                 onStop: () => setTTSPlaying(false),
                                 onLevel: (rms) => setTTSLevel(rms),
@@ -353,6 +360,7 @@ export default function ChatView() {
     }
 
     /* ── Render ────────────────────────────────────────────────────── */
+    const isLive = settings?.activeMode === 'live';
     return (
         <div className={styles.chatLayout}>
 
@@ -429,7 +437,11 @@ export default function ChatView() {
 
             {/* ── Conversation pane ────────────────────────── */}
             <section
-                className={`${styles.conversationPane} ${!activeThread ? styles.conversationPaneHidden : ''}`}
+                className={[
+                    styles.conversationPane,
+                    !activeThread ? styles.conversationPaneHidden : '',
+                    isLive ? styles.liveMode : '',
+                ].join(' ')}
                 aria-label="Conversation"
             >
                 {/* Back button (mobile) */}
@@ -498,19 +510,37 @@ export default function ChatView() {
                 {/* Spectrograph mouth visualizer */}
                 {activeThread && (
                     <div className={styles.spectrographWrapper}>
-                        <SpectrographMouth size="small" active={isTTSPlaying} />
+                        <SpectrographMouth
+                            size={settings?.activeMode === 'live' ? 'large' : 'small'}
+                            active={isTTSPlaying}
+                        />
                     </div>
                 )}
 
-                {/* Input */}
+                {/* Input row — text input + camera button (Phase 9) */}
                 {activeThread && (
-                    <ChatInput
-                        onSend={handleSend}
-                        onRecordStart={handleRecordStart}
-                        onRecordStop={handleRecordStop}
-                        disabled={isStreaming}
-                        placeholder={`Message ${activeThread && threadTitle(activeThread)}…`}
-                    />
+                    <div className={styles.inputRow}>
+                        {settings?.activeMode === 'live' && (
+                            <button
+                                className={styles.cameraBtn}
+                                aria-label="Attach camera frame (Phase 9)"
+                                title="Camera — coming in Phase 9"
+                                disabled
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M23 7l-7 5 7 5V7z" />
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                </svg>
+                            </button>
+                        )}
+                        <ChatInput
+                            onSend={handleSend}
+                            onRecordStart={handleRecordStart}
+                            onRecordStop={handleRecordStop}
+                            disabled={isStreaming}
+                            placeholder={`Message ${activeThread && threadTitle(activeThread)}…`}
+                        />
+                    </div>
                 )}
             </section>
 
