@@ -12,6 +12,8 @@ import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import GroupSheet from '../components/GroupSheet';
 import ImagePreview from '../components/ImagePreview';
+import SummarizerSheet from '../components/SummarizerSheet';
+import SeedCrystalSheet from '../components/SeedCrystalSheet';
 import SpectrographMouth from '../components/SpectrographMouth';
 import styles from './ChatView.module.css';
 
@@ -57,6 +59,11 @@ export default function ChatView() {
     const [streamingText, setStreamingText] = useState('');
     const [lastUserText, setLastUserText] = useState('');   // for retry
     const [sheetOpen, setSheetOpen] = useState(false);
+
+    // ── Phase 10 sheet states ────────────────────────────────────────
+    const [summarizerOpen, setSummarizerOpen] = useState(false);
+    const [seedMode, setSeedMode] = useState(null); // null | 'current' | 'single'
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const messagesEndRef = useRef(null);
     const speechSessionRef = useRef(null);   // Web Speech API session handle
@@ -514,21 +521,68 @@ export default function ChatView() {
                 ].join(' ')}
                 aria-label="Conversation"
             >
-                {/* Back button (mobile) */}
+                {/* Back button + ⋯ menu header */}
                 {activeThread && (
-                    <button
-                        className={styles.backBtn}
-                        onClick={() => { setActiveThread(null); setActiveThreadTitle(''); setStreamingText(''); }}
-                        aria-label="Back to threads"
-                        id="chat-back-button"
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="15 18 9 12 15 6" />
-                        </svg>
-                        <span className={styles.backTitle}>
-                            {threadContacts.map((c) => c.avatar).join(' ')} {activeThread && threadTitle(activeThread)}
-                        </span>
-                    </button>
+                    <div className={styles.convHeader}>
+                        <button
+                            className={styles.backBtn}
+                            onClick={() => { setActiveThread(null); setActiveThreadTitle(''); setStreamingText(''); }}
+                            aria-label="Back to threads"
+                            id="chat-back-button"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                            <span className={styles.backTitle}>
+                                {threadContacts.map((c) => c.avatar).join(' ')} {threadTitle(activeThread)}
+                            </span>
+                        </button>
+
+                        {/* ⋯ menu */}
+                        <div className={styles.menuWrapper}>
+                            <button
+                                className={styles.menuBtn}
+                                onClick={() => setMenuOpen((o) => !o)}
+                                aria-label="Thread options"
+                                aria-expanded={menuOpen}
+                                id="thread-menu-btn"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                                    <circle cx="5" cy="12" r="2" />
+                                    <circle cx="12" cy="12" r="2" />
+                                    <circle cx="19" cy="12" r="2" />
+                                </svg>
+                            </button>
+                            {menuOpen && (
+                                <div className={styles.menuPopover} role="menu">
+                                    <button
+                                        className={styles.menuItem}
+                                        role="menuitem"
+                                        onClick={() => { setMenuOpen(false); setSummarizerOpen(true); }}
+                                        id="menu-summarize"
+                                    >
+                                        📝 Summarize
+                                    </button>
+                                    <button
+                                        className={styles.menuItem}
+                                        role="menuitem"
+                                        onClick={() => { setMenuOpen(false); setSeedMode('current'); }}
+                                        id="menu-seed-current"
+                                    >
+                                        🌱 New Chat from Current
+                                    </button>
+                                    <button
+                                        className={styles.menuItem}
+                                        role="menuitem"
+                                        onClick={() => { setMenuOpen(false); setSeedMode('single'); }}
+                                        id="menu-seed-single"
+                                    >
+                                        💬 New Chat from Single Response
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 )}
 
                 {/* Messages */}
@@ -659,6 +713,35 @@ export default function ChatView() {
                 onClose={() => setSheetOpen(false)}
                 onCreateSolo={handleCreateSolo}
                 onCreateGroup={handleCreateGroup}
+            />
+
+            {/* ── Summarizer Sheet (Phase 10) ───────────────── */}
+            <SummarizerSheet
+                open={summarizerOpen}
+                onClose={() => setSummarizerOpen(false)}
+                messages={messages}
+                contact={threadContacts[0] ?? null}
+                settings={settings}
+                threadId={activeThread?.id}
+                onContactUpdate={() => {
+                    // Re-load contacts so any notes update is reflected
+                }}
+            />
+
+            {/* ── Seed Crystal Sheet (Phase 10) ─────────────── */}
+            <SeedCrystalSheet
+                open={seedMode !== null}
+                onClose={() => setSeedMode(null)}
+                mode={seedMode ?? 'current'}
+                messages={messages}
+                contact={threadContacts[0] ?? null}
+                settings={settings}
+                threadContacts={threadContacts}
+                onThreadCreated={async (newThread) => {
+                    setSeedMode(null);
+                    await refreshThreads();
+                    openThread(newThread);
+                }}
             />
         </div>
     );

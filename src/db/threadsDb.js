@@ -90,3 +90,22 @@ export async function deleteThread(threadId) {
         await db.threads.delete(threadId);
     });
 }
+
+/**
+ * Always create a new solo thread for a single contact.
+ * Used by Seed Crystal to open a fresh conversation without reusing existing threads.
+ * @param {number} contactId
+ * @param {string} [title]
+ * @returns {Promise<Thread>}
+ */
+export async function createSoloThread(contactId, title = '') {
+    const now = Date.now();
+    const id = await db.threads.add({
+        title,
+        contactIds: String(contactId),
+        createdAt: now,
+        updatedAt: now,
+        seedCrystal: null,
+    });
+    return db.threads.get(id);
+}
