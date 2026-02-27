@@ -3,7 +3,7 @@
  *
  * Usage:
  *   import { streamChat } from '../llm/llmClient';
- *   await streamChat({ contact, settings, messages, onToken, onDone, onError });
+ *   await streamChat({ contact, settings, messages, imageDataUrl, onToken, onDone, onError });
  *
  * The client merges per-contact config with global settings (contact wins),
  * picks the correct adapter, and delegates.
@@ -17,14 +17,15 @@ import { streamChat as localStreamChat } from './localAdapter.js';
  * Stream a chat completion using the appropriate adapter for the contact.
  *
  * @param {object} opts
- * @param {object}   opts.contact   — full contact row from IndexedDB (has llmConfig)
- * @param {object}   opts.settings  — global settings map from Zustand store
- * @param {Array}    opts.messages  — [{role:'user'|'assistant'|'system', content:string}, ...]
- * @param {function} opts.onToken   — (chunk: string) => void  [called per token/chunk]
- * @param {function} opts.onDone    — (fullText: string) => void  [called on completion]
- * @param {function} opts.onError   — (error: Error) => void  [called on failure]
+ * @param {object}   opts.contact        full contact row from IndexedDB (has llmConfig)
+ * @param {object}   opts.settings       global settings map from Zustand store
+ * @param {Array}    opts.messages       [{role, content}, ...] conversation history
+ * @param {string}   [opts.imageDataUrl] optional image as a data URL for vision models
+ * @param {function} opts.onToken        called with each text chunk (string)
+ * @param {function} opts.onDone         called with full accumulated text when done
+ * @param {function} opts.onError        called with an Error on failure
  */
-export async function streamChat({ contact, settings, messages, onToken, onDone, onError }) {
+export async function streamChat({ contact, settings, messages, imageDataUrl, onToken, onDone, onError }) {
     const llm = contact?.llmConfig ?? {};
     const endpointType = llm.endpointType || 'local';
 
@@ -35,9 +36,32 @@ export async function streamChat({ contact, settings, messages, onToken, onDone,
 
     // Build the system message if the contact has a system instruction
     const systemInstruction = contact?.systemInstruction?.trim();
+
+    // ── Vision payload: wrap last user message in multipart content ──────────
+    // Strip imageRef from each message (DB rows may include it); keep only role + content
+    let processedMessages = messages.map((m) => ({ role: m.role, content: m.content }));
+
+    if (imageDataUrl) {
+        // Find the index of the most-recent user message
+        const lastUserIdx = processedMessages.reduceRight(
+            (found, m, i) => (found === -1 && m.role === 'user' ? i : found),
+            -1,
+        );
+        if (lastUserIdx !== -1) {
+            const textContent = processedMessages[lastUserIdx].content;
+            processedMessages[lastUserIdx] = {
+                role: 'user',
+                content: [
+                    { type: 'image_url', image_url: { url: imageDataUrl, detail: 'auto' } },
+                    { type: 'text', text: textContent },
+                ],
+            };
+        }
+    }
+
     const fullMessages = systemInstruction
-        ? [{ role: 'system', content: systemInstruction }, ...messages]
-        : messages;
+        ? [{ role: 'system', content: systemInstruction }, ...processedMessages]
+        : processedMessages;
 
     const adapterOpts = {
         baseUrl,

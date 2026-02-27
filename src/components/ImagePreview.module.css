@@ -1,0 +1,68 @@
+/* ── ImagePreview.module.css ─────────────────────────────────────── */
+
+.wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    animation: slideUp 200ms ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.thumb {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-border);
+    display: block;
+}
+
+.clearBtn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    background: var(--color-danger, #e8604e);
+    color: #fff;
+    border: 2px solid var(--color-bg);
+    font-size: 10px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: transform var(--transition-fast);
+}
+
+.clearBtn:hover {
+    transform: scale(1.15);
+}
+
+.label {
+    font-size: var(--font-size-xs, 11px);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}

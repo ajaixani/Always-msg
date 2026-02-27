@@ -297,7 +297,7 @@
     flex: 1;
 }
 
-/* ── Camera button (Phase 9 placeholder) ────────────────────────── */
+/* ── Camera button (Live mode) ──────────────────────────────────── */
 .cameraBtn {
     width: 44px;
     height: 44px;
@@ -309,14 +309,67 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: not-allowed;
-    opacity: 0.45;
-    transition: opacity var(--transition-fast);
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.cameraBtn:hover {
+    opacity: 1;
+    border-color: var(--color-accent);
+}
+
+.cameraBtn.cameraBtnActive,
+.cameraBtnActive {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #0d0d0d;
+    opacity: 1;
 }
 
 .cameraBtn svg {
     width: 20px;
     height: 20px;
+}
+
+/* ── Attach button (Push mode paperclip) ────────────────────────── */
+.attachBtn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.attachBtn:hover {
+    opacity: 1;
+    border-color: var(--color-accent);
+}
+
+.attachBtn.attachBtnActive,
+.attachBtnActive {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #0d0d0d;
+    opacity: 1;
+}
+
+.attachBtn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ── Hidden file input utility ──────────────────────────────────── */
+.hiddenInput {
+    display: none;
 }
 
 /* ── Mobile: single-panel ──────────────────────────────────────── */

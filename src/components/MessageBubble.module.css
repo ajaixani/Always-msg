@@ -137,3 +137,15 @@
 .retryBtn:hover {
     opacity: 0.7;
 }
+/* ── Attached image thumbnail ──────────────────────────────────── */
+.attachedImage {
+    display: block;
+    max-width: 220px;
+    max-height: 180px;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-2);
+    border: 1px solid var(--color-border);
+}

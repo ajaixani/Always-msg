@@ -11,6 +11,7 @@ import { ttsPlayer } from '../audio/ttsPlayer';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import GroupSheet from '../components/GroupSheet';
+import ImagePreview from '../components/ImagePreview';
 import SpectrographMouth from '../components/SpectrographMouth';
 import styles from './ChatView.module.css';
 
@@ -62,6 +63,11 @@ export default function ChatView() {
     const recorderRef = useRef(null);   // MediaRecorder handle (Whisper path)
     const vadLoopRef = useRef(null);   // live-mode VAD handle
     const ttsHandleRef = useRef(null);   // current TTS play handle → .stop()
+    const fileInputRef = useRef(null);   // hidden file input for image attach
+    const cameraStreamRef = useRef(null); // live camera MediaStream
+
+    // ── Image attachment state (Phase 9) ────────────────────────────
+    const [pendingImage, setPendingImage] = useState(null); // data URL | null
 
     // Contacts in the active thread
     const threadContacts = activeThread
@@ -69,6 +75,23 @@ export default function ChatView() {
             .map((id) => contacts.find((c) => c.id === id))
             .filter(Boolean)
         : [];
+
+    // ── Vision capability check ──────────────────────────────────────
+    function isVisionCapable(contact) {
+        const v = contact?.llmConfig?.vision;
+        if (v === 'on') return true;
+        if (v === 'off') return false;
+        // Auto-detect from model name
+        const model = (contact?.llmConfig?.model || settings?.model || '').toLowerCase();
+        return (
+            model.includes('vision') ||
+            model.startsWith('gpt-4') ||
+            model.includes('claude-3') ||
+            model.includes('gemini')
+        );
+    }
+    // True if ANY contact in the thread supports vision
+    const threadHasVision = threadContacts.some(isVisionCapable);
 
     /* ── Load thread list ──────────────────────────────────────────── */
     const refreshThreads = useCallback(async () => {
@@ -272,8 +295,12 @@ export default function ChatView() {
 
         setLastUserText(text);
 
-        // 1. Persist + display user message
-        const userMsg = await addMessage(activeThread.id, 'user', text);
+        // Consume and clear the pending image
+        const imageToSend = pendingImage;
+        setPendingImage(null);
+
+        // 1. Persist + display user message (with optional image)
+        const userMsg = await addMessage(activeThread.id, 'user', text, imageToSend);
         setMessages((prev) => [...prev, userMsg]);
 
         setStreaming(true);
@@ -293,6 +320,7 @@ export default function ChatView() {
                 contact,
                 settings,
                 messages: llmMessages,
+                imageDataUrl: imageToSend,
                 onToken: (chunk) => {
                     accumulated += chunk;
                     setStreamingText(accumulated);
@@ -345,7 +373,49 @@ export default function ChatView() {
         await updateThreadTimestamp(activeThread.id);
         await refreshThreads();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeThread, threadContacts, isStreaming, settings]);
+    }, [activeThread, threadContacts, isStreaming, settings, pendingImage]);
+
+    /* ── Attach image from file picker ─────────────────────────────── */
+    const handleAttachFile = useCallback(() => {
+        fileInputRef.current?.click();
+    }, []);
+
+    const handleFileChange = useCallback((e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => setPendingImage(ev.target.result);
+        reader.readAsDataURL(file);
+        // Reset input so same file can be reselected
+        e.target.value = '';
+    }, []);
+
+    /* ── Camera capture (Live mode) ────────────────────────────────── */
+    const handleCameraCapture = useCallback(async () => {
+        // If we already have a pending camera image, clear it instead
+        if (pendingImage) { setPendingImage(null); return; }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            cameraStreamRef.current = stream;
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.playsInline = true;
+            await video.play();
+            // Wait one frame for the camera to warm up
+            await new Promise((r) => setTimeout(r, 300));
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            // Stop the stream immediately
+            stream.getTracks().forEach((t) => t.stop());
+            cameraStreamRef.current = null;
+            setPendingImage(dataUrl);
+        } catch (err) {
+            console.warn('[Camera]', err.message);
+        }
+    }, [pendingImage]);
 
     /* ── Derive header avatars for thread ─────────────────────────── */
     function threadAvatars(thread) {
@@ -517,30 +587,68 @@ export default function ChatView() {
                     </div>
                 )}
 
-                {/* Input row — text input + camera button (Phase 9) */}
+                {/* Input area */}
                 {activeThread && (
-                    <div className={styles.inputRow}>
-                        {settings?.activeMode === 'live' && (
-                            <button
-                                className={styles.cameraBtn}
-                                aria-label="Attach camera frame (Phase 9)"
-                                title="Camera — coming in Phase 9"
-                                disabled
-                            >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M23 7l-7 5 7 5V7z" />
-                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                </svg>
-                            </button>
+                    <>
+                        {/* Image attachment preview */}
+                        {pendingImage && (
+                            <ImagePreview
+                                src={pendingImage}
+                                onClear={() => setPendingImage(null)}
+                            />
                         )}
-                        <ChatInput
-                            onSend={handleSend}
-                            onRecordStart={handleRecordStart}
-                            onRecordStop={handleRecordStop}
-                            disabled={isStreaming}
-                            placeholder={`Message ${activeThread && threadTitle(activeThread)}…`}
+
+                        {/* Hidden file input for push-mode image attach */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className={styles.hiddenInput}
+                            onChange={handleFileChange}
+                            aria-hidden="true"
                         />
-                    </div>
+
+                        {/* Input row: camera/attach btn + ChatInput */}
+                        <div className={styles.inputRow}>
+                            {isLive && threadHasVision && (
+                                /* Camera button (Live mode) */
+                                <button
+                                    className={`${styles.cameraBtn} ${pendingImage ? styles.cameraBtnActive : ''}`}
+                                    onClick={handleCameraCapture}
+                                    aria-label="Capture camera frame"
+                                    title="Capture a frame from your camera"
+                                    type="button"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M23 7l-7 5 7 5V7z" />
+                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                    </svg>
+                                </button>
+                            )}
+                            {!isLive && threadHasVision && (
+                                /* Paperclip button (Push mode) */
+                                <button
+                                    className={`${styles.attachBtn} ${pendingImage ? styles.attachBtnActive : ''}`}
+                                    onClick={handleAttachFile}
+                                    aria-label="Attach image"
+                                    title="Attach an image"
+                                    type="button"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                                    </svg>
+                                </button>
+                            )}
+                            <ChatInput
+                                onSend={handleSend}
+                                onRecordStart={handleRecordStart}
+                                onRecordStop={handleRecordStop}
+                                disabled={isStreaming}
+                                placeholder={`Message ${threadTitle(activeThread)}…`}
+                            />
+                        </div>
+                    </>
                 )}
             </section>
 

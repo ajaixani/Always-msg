@@ -41,15 +41,16 @@ export async function getLastMessage(threadId) {
  * @param {number} threadId
  * @param {'user'|'assistant'|'system'} role
  * @param {string} content
+ * @param {string|null} [imageDataUrl] — optional attached image as a data URL (Phase 9)
  * @returns {Promise<Message>}
  */
-export async function addMessage(threadId, role, content) {
+export async function addMessage(threadId, role, content, imageDataUrl = null) {
     const now = Date.now();
     const id = await db.messages.add({
         threadId,
         role,
         content,
-        imageRef: null,
+        imageRef: imageDataUrl ?? null,
         timestamp: now,
     });
     return db.messages.get(id);

@@ -21,11 +21,18 @@ const ENDPOINT_OPTIONS = [
     { value: 'local', label: 'Local' },
 ];
 
+const VISION_OPTIONS = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'on', label: 'On' },
+    { value: 'off', label: 'Off' },
+];
+
 const DEFAULT_LLM_CONFIG = {
     endpointType: 'openai',
     baseUrl: '',
     model: '',
     apiKey: '',
+    vision: 'auto',   // 'auto' | 'on' | 'off'
 };
 
 const DEFAULT_TTS_CONFIG = {
@@ -219,7 +226,20 @@ export default function ContactSheet({ open, onClose, contactId }) {
                     />
                 </div>
 
-                {/* Don't show API key for local endpoints */}
+                {/* Vision capability override */}
+                <div className={styles.fieldGroup}>
+                    <label className={styles.label}>Vision
+                        <span className={styles.sectionNote}> — Auto detects gpt-4*, claude-3*, *vision*</span>
+                    </label>
+                    <SegmentedControl
+                        name="Vision capability"
+                        options={VISION_OPTIONS}
+                        value={form.llmConfig.vision ?? 'auto'}
+                        onChange={(v) => setLlmField('vision', v)}
+                    />
+                </div>
+
+                {/* Don’t show API key for local endpoints */}
                 {form.llmConfig.endpointType !== 'local' && (
                     <div className={styles.fieldGroup}>
                         <label htmlFor="contact-api-key" className={styles.label}>API Key</label>
