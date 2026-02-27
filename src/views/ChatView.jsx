@@ -245,6 +245,7 @@ export default function ChatView() {
     /* ── PTT: record stop ──────────────────────────────────────────── */
     const handleRecordStop = useCallback(async () => {
         setRecording(false);
+        setIsRecordingToggle(false);
 
         // Web Speech API path — stop recognition, result comes via onResult callback
         if (speechSessionRef.current) {
@@ -266,6 +267,77 @@ export default function ChatView() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settings]);
+
+    /* ── Tap-to-toggle: single tap starts / second tap stops ──────── */
+    const handleMicTap = useCallback(async () => {
+        if (isStreaming) return;
+
+        // Second tap → stop
+        if (isRecordingToggle) {
+            handleRecordStop();
+            return;
+        }
+
+        // First tap → start in toggle mode
+        ttsHandleRef.current?.stop();
+        ttsHandleRef.current = null;
+        setMicError(null);
+        setRecording(true);
+        setIsRecordingToggle(true);
+
+        const asrEndpoint = settings?.asrEndpoint?.trim();
+
+        if (asrEndpoint || !isSpeechAPIAvailable()) {
+            // Whisper path: start MediaRecorder, stop on second tap
+            try {
+                recorderRef.current = await startRecording();
+            } catch (err) {
+                if (err instanceof MicPermissionError) setMicError(err.message);
+                else setMicError(`Mic error: ${err.message}`);
+                setRecording(false);
+                setIsRecordingToggle(false);
+            }
+        } else {
+            // Web Speech API with continuous:true so it keeps listening until stop()
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = navigator.language || 'en-US';
+            recognition.maxAlternatives = 1;
+
+            let finalTranscript = '';
+
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    }
+                }
+            };
+
+            recognition.onerror = (event) => {
+                const msg = event.error === 'no-speech' ? 'No speech detected.' : `ASR error: ${event.error}`;
+                setMicError(msg);
+                setRecording(false);
+                setIsRecordingToggle(false);
+                speechSessionRef.current = null;
+            };
+
+            recognition.onend = () => {
+                setRecording(false);
+                setIsRecordingToggle(false);
+                speechSessionRef.current = null;
+                const text = finalTranscript.trim();
+                if (text) handleSend(text);
+            };
+
+            recognition.start();
+            // Store a stop handle compatible with handleRecordStop
+            speechSessionRef.current = { stop: () => recognition.stop() };
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isStreaming, isRecordingToggle, settings]);
 
     /* ── Live mode: VAD auto-listen loop ───────────────────────────── */
     useEffect(() => {
@@ -363,9 +435,36 @@ export default function ChatView() {
             let accumulated = '';
             const isGroup = threadContacts.length > 1;
 
-            // Sentence-streaming TTS setup
-            let ttsBuffer = '';
+            // ── Sentence-streaming TTS: sequential queue ───────────────
             const ttsEndpoint = contact.ttsConfig?.endpoint?.trim() || settings?.ttsEndpoint?.trim();
+            const ttsSettings = ttsEndpoint ? {
+                ...settings,
+                ttsEndpoint,
+                ttsVoice: contact.ttsConfig?.voice?.trim() || settings?.ttsVoice || 'af_heart',
+            } : null;
+            let ttsBuffer = '';             // partial sentence accumulator
+            const ttsQueue = [];            // queued complete sentences
+            let ttsSpeaking = false;        // is a sentence currently playing?
+
+            function flushTTSQueue() {
+                if (ttsSpeaking || ttsQueue.length === 0) return;
+                const sentence = ttsQueue.shift();
+                ttsSpeaking = true;
+                speak(sentence, ttsSettings, {
+                    onPlay: () => setTTSPlaying(true),
+                    onStop: () => {
+                        setTTSPlaying(false);
+                        ttsSpeaking = false;
+                        flushTTSQueue(); // play next sentence in queue
+                    },
+                    onLevel: (rms) => setTTSLevel(rms),
+                }).then((h) => { ttsHandleRef.current = h; })
+                    .catch((err) => {
+                        console.warn('[TTS queue]', err.message);
+                        ttsSpeaking = false;
+                        flushTTSQueue();
+                    });
+            }
 
             await streamChat({
                 contact,
@@ -377,35 +476,22 @@ export default function ChatView() {
                     setStreamingText(accumulated);
 
                     // ── Sentence-streaming TTS ──────────────────────────
-                    // Speak each sentence as it completes, don't wait for onDone.
-                    if (!ttsEndpoint) return;
-                    // Detect sentence boundaries: . ! ? followed by space/newline, or double newline
-                    const boundary = /[.!?][)\]"'`]?\s+|[.!?][)\]"'`]?$/m;
-                    let rest = ttsBuffer;
-                    rest += chunk;
+                    if (!ttsSettings) return;
+                    let rest = ttsBuffer + chunk;
+                    // Sentence boundary: . ! ? optionally followed by closing punctuation + whitespace
+                    const boundary = /[.!?][)\]"'`]?\s+/g;
+                    let lastIndex = 0;
                     let match;
                     // eslint-disable-next-line no-cond-assign
                     while ((match = boundary.exec(rest)) !== null) {
-                        const sentence = rest.slice(0, match.index + match[0].length).trim();
-                        rest = rest.slice(match.index + match[0].length);
-                        if (sentence.length > 2) {
-                            ttsBuffer = rest;
-                            const ttsSettings = {
-                                ...settings,
-                                ttsEndpoint,
-                                ttsVoice: contact.ttsConfig?.voice?.trim() || settings?.ttsVoice || 'af_heart',
-                            };
-                            speak(sentence, ttsSettings, {
-                                onPlay: () => setTTSPlaying(true),
-                                onStop: () => setTTSPlaying(false),
-                                onLevel: (rms) => setTTSLevel(rms),
-                            }).then((h) => { ttsHandleRef.current = h; }).catch((err) => {
-                                console.warn('[TTS sentence]', err.message);
-                            });
-                            return;
+                        const sentence = rest.slice(lastIndex, match.index + match[0].length).trim();
+                        lastIndex = match.index + match[0].length;
+                        if (sentence.length > 3) {
+                            ttsQueue.push(sentence);
+                            flushTTSQueue();
                         }
                     }
-                    ttsBuffer = rest;
+                    ttsBuffer = rest.slice(lastIndex);
                 },
                 onDone: async (fullText) => {
                     const saved = await addMessage(activeThread.id, 'assistant', fullText || accumulated);
@@ -416,29 +502,17 @@ export default function ChatView() {
                     accumulated = '';
                     setStreamingText('');
 
-                    // ── Speak any remaining buffered text ────────────────
+                    // Speak any remaining fragment
                     const remaining = ttsBuffer.trim();
                     ttsBuffer = '';
-                    if (remaining.length > 2 && ttsEndpoint) {
-                        const ttsSettings = {
-                            ...settings,
-                            ttsEndpoint,
-                            ttsVoice: contact.ttsConfig?.voice?.trim() || settings?.ttsVoice || 'af_heart',
-                        };
-                        try {
-                            const handle = await speak(remaining, ttsSettings, {
-                                onPlay: () => setTTSPlaying(true),
-                                onStop: () => setTTSPlaying(false),
-                                onLevel: (rms) => setTTSLevel(rms),
-                            });
-                            ttsHandleRef.current = handle;
-                        } catch (err) {
-                            console.warn('[TTS remainder]', err.message);
-                        }
+                    if (remaining.length > 2 && ttsSettings) {
+                        ttsQueue.push(remaining);
+                        flushTTSQueue();
                     }
                 },
                 onError: async (err) => {
-                    ttsBuffer = ''; // clear buffer on error
+                    ttsBuffer = '';
+                    ttsQueue.length = 0; // discard any queued sentences
                     const errMsg = await addMessage(activeThread.id, 'assistant', `⚠️ ${err.message}`);
                     setMessages((prev) => [
                         ...prev,
@@ -782,7 +856,7 @@ export default function ChatView() {
                             {/* Chat input: mic (tap=toggle / hold=PTT) + textarea + send */}
                             <ChatInput
                                 onSend={handleSend}
-                                onTap={handleRecordStart}
+                                onTap={handleMicTap}
                                 onRecordStart={handleRecordStart}
                                 onRecordStop={handleRecordStop}
                                 disabled={isStreaming}
