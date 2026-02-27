@@ -1,41 +1,53 @@
 /**
- * vad.js — Web Audio API voice activity detection.
+ * vad.js — Web Audio API voice activity detection using Silero ONNX.
  *
- * Uses an AnalyserNode to measure RMS amplitude on an animation-frame loop.
- * Fires callbacks when speech starts / ends, and reports live level for visualizers.
+ * Uses @ricky0123/vad-web for robust, neural-based voice activity detection.
+ * Maintains an AnalyserNode to report live level for visualizers.
  *
  * Usage:
- *   const vad = createVAD({ stream, sensitivity: 0.5,
- *                           onSpeechStart, onSpeechEnd, onLevel });
+ *   const vad = await createVAD({ stream, sensitivity: 0.5,
+ *                                 onSpeechStart, onSpeechEnd, onLevel });
  *   // later:
  *   vad.destroy();
  */
 
-const POLL_INTERVAL_MS = 30;    // how often to compute RMS (ms)
-const SILENCE_FRAMES_UNTIL_END = 50; // ~1500 ms of silence before onSpeechEnd fires
+import { micVAD } from "@ricky0123/vad-web";
 
-/**
- * Map a sensitivity value (0–1) to an RMS threshold.
- * sensitivity=0   → threshold 0.20 (only loud sounds trigger)
- * sensitivity=0.5 → threshold 0.08
- * sensitivity=1   → threshold 0.02 (whispers trigger)
- */
-function sensitivityToThreshold(s) {
-    return 0.20 - s * 0.18;
-}
+const POLL_INTERVAL_MS = 30; // how often to compute RMS (ms) for visualizer
 
 /**
  * Create a VAD instance attached to a live MediaStream.
  *
  * @param {object} opts
  * @param {MediaStream} opts.stream            — live mic stream
- * @param {number}      opts.sensitivity       — 0–1 from settings
+ * @param {number}      opts.sensitivity       — 0–1 from settings (currently unused for Neural VAD)
  * @param {function}    [opts.onSpeechStart]   — () => void
  * @param {function}    [opts.onSpeechEnd]     — () => void
  * @param {function}    [opts.onLevel]         — (rms: number) => void
- * @returns {{ isSpeaking: () => boolean, destroy: () => void }}
+ * @returns {Promise<{ isSpeaking: () => boolean, destroy: () => void }>}
  */
-export function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSpeechEnd, onLevel }) {
+export async function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSpeechEnd, onLevel }) {
+    let speaking = false;
+
+    // Use Neural VAD via AudioWorklet
+    const myvad = await micVAD.new({
+        stream,
+        positiveSpeechThreshold: 0.5, // Sensitivity for speech detection
+        minSpeechFrames: 7,           // ~200ms (prevent clicks/pops)
+        redemptionFrames: 50,         // ~1500ms (thinking pauses before onSpeechEnd)
+        onSpeechStart: () => {
+            speaking = true;
+            onSpeechStart?.();
+        },
+        onSpeechEnd: () => {
+            speaking = false;
+            onSpeechEnd?.();
+        },
+    });
+
+    myvad.start();
+
+    // Maintain visualizer loop using AnalyserNode
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
@@ -44,10 +56,6 @@ export function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSpeechEn
     source.connect(analyser);
 
     const dataArray = new Float32Array(analyser.fftSize);
-    const threshold = sensitivityToThreshold(sensitivity);
-
-    let speaking = false;
-    let silenceFrames = 0;
     let rafId = null;
     let destroyed = false;
 
@@ -66,21 +74,6 @@ export function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSpeechEn
         const rms = computeRMS();
         onLevel?.(rms);
 
-        if (rms > threshold) {
-            silenceFrames = 0;
-            if (!speaking) {
-                speaking = true;
-                onSpeechStart?.();
-            }
-        } else if (speaking) {
-            silenceFrames++;
-            if (silenceFrames >= SILENCE_FRAMES_UNTIL_END) {
-                speaking = false;
-                silenceFrames = 0;
-                onSpeechEnd?.();
-            }
-        }
-
         // Use setTimeout instead of rAF to work even in background tabs
         rafId = setTimeout(tick, POLL_INTERVAL_MS);
     }
@@ -93,11 +86,12 @@ export function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSpeechEn
             destroyed = true;
             clearTimeout(rafId);
             try {
+                myvad.pause();
+            } catch (err) { }
+            try {
                 source.disconnect();
                 audioCtx.close();
-            } catch {
-                // ignore if already closed
-            }
+            } catch { }
         },
     };
 }

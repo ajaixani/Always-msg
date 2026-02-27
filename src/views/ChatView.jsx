@@ -295,7 +295,7 @@ export default function ChatView() {
                 const recorder = await startRecording();
                 recorderRef.current = recorder;
 
-                vadLoopRef.current = createVAD({
+                vadLoopRef.current = await createVAD({
                     stream: recorder.stream,
                     sensitivity,
                     onSpeechStart: () => setVadActive(true),
@@ -359,6 +359,7 @@ export default function ChatView() {
 
         let recorder = null;
         let session = null;
+        let vadCancelled = false;
         const sensitivity = Number(settings?.vadSensitivity ?? 0.5);
         const asrEndpoint = settings?.asrEndpoint?.trim();
         const useWhisper = !!asrEndpoint;
@@ -382,7 +383,7 @@ export default function ChatView() {
                 });
             }
 
-            vadLoopRef.current = createVAD({
+            const vad = await createVAD({
                 stream,
                 sensitivity,
                 onSpeechStart: () => {
@@ -413,6 +414,12 @@ export default function ChatView() {
                 },
             });
 
+            if (vadCancelled) {
+                vad.destroy();
+                return;
+            }
+            vadLoopRef.current = vad;
+
             // Change B: pass the shared stream into the recorder (no second getUserMedia).
             if (useWhisper) {
                 recorder = await startRecording({ stream });
@@ -431,6 +438,7 @@ export default function ChatView() {
             .catch((err) => setMicError(err.message));
 
         return () => {
+            vadCancelled = true;
             vadLoopRef.current?.destroy();
             vadLoopRef.current = null;
             setListening(false);
