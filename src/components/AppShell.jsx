@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import BottomNav from './BottomNav';
+import OfflineBanner from './OfflineBanner';
 import useAppStore from '../state/useAppStore';
 import { seedDefaultSettings } from '../db/db';
 import db from '../db/db';
@@ -47,6 +48,7 @@ export default function AppShell() {
 
     return (
         <div className={styles.shell}>
+            <OfflineBanner />
             <header className={styles.header}>
                 <span className={styles.headerTitle}>
                     {headerTitle}

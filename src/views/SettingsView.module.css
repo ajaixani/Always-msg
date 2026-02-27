@@ -70,3 +70,60 @@
 .input::placeholder {
     color: var(--color-text-muted);
 }
+/* ── Endpoint test row ───────────────────────────────────────── */
+.testRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.testBtn {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    background: transparent;
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+    white-space: nowrap;
+}
+
+.testBtn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.testBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.statusOk {
+    font-size: var(--font-size-sm);
+    color: #5adb85;
+    font-weight: var(--font-weight-medium);
+}
+
+.statusError {
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+    font-weight: var(--font-weight-medium);
+    max-width: 280px;
+    word-break: break-word;
+}
+
+.statusTesting {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.labelNote {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-regular, 400);
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+}

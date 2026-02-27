@@ -45,6 +45,9 @@ export async function getLastMessage(threadId) {
  * @returns {Promise<Message>}
  */
 export async function addMessage(threadId, role, content, imageDataUrl = null) {
+    if (imageDataUrl && imageDataUrl.length > 500_000) {
+        console.warn('[messagesDb] Large image attached:', Math.round(imageDataUrl.length / 1024), 'KB — consider compressing before storing');
+    }
     const now = Date.now();
     const id = await db.messages.add({
         threadId,

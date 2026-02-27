@@ -64,6 +64,19 @@ export default function ChatView() {
     const [summarizerOpen, setSummarizerOpen] = useState(false);
     const [seedMode, setSeedMode] = useState(null); // null | 'current' | 'single'
     const [menuOpen, setMenuOpen] = useState(false);
+    const menuWrapperRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (menuWrapperRef.current && !menuWrapperRef.current.contains(event.target)) {
+                setMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [menuWrapperRef, setMenuOpen]);
 
     const messagesEndRef = useRef(null);
     const speechSessionRef = useRef(null);   // Web Speech API session handle
@@ -520,6 +533,7 @@ export default function ChatView() {
                     isLive ? styles.liveMode : '',
                 ].join(' ')}
                 aria-label="Conversation"
+                aria-busy={isStreaming}
             >
                 {/* Back button + ⋯ menu header */}
                 {activeThread && (
@@ -539,7 +553,7 @@ export default function ChatView() {
                         </button>
 
                         {/* ⋯ menu */}
-                        <div className={styles.menuWrapper}>
+                        <div className={styles.menuWrapper} ref={menuWrapperRef}>
                             <button
                                 className={styles.menuBtn}
                                 onClick={() => setMenuOpen((o) => !o)}

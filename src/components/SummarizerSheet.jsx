@@ -156,7 +156,7 @@ export default function SummarizerSheet({
                         </button>
 
                         {/* Error */}
-                        {error && <p className={styles.error}>{error}</p>}
+                        {error && <p className={styles.error} role="alert">{error}</p>}
 
                         {/* Output */}
                         {output && (

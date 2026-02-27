@@ -37,6 +37,7 @@ export default function MessageBubble({ role, content, imageRef, isStreaming = f
                             src={imageRef}
                             alt="Attached image"
                             className={styles.attachedImage}
+                            loading="lazy"
                         />
                     )}
                     <span className={styles.content}>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import useAppStore from '../state/useAppStore';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import Slider from '../components/ui/Slider';
@@ -53,6 +53,66 @@ export default function SettingsView() {
     const ttsVoice = settings.ttsVoice ?? 'af_heart';
     const ttsModel = settings.ttsModel ?? 'kokoro';
 
+    // ── Endpoint test state ────────────────────────────────────────
+    const [llmStatus, setLlmStatus] = useState('idle'); // 'idle'|'testing'|'ok'|'error'
+    const [llmError, setLlmError] = useState('');
+    const [ttsStatus, setTtsStatus] = useState('idle');
+    const [ttsError, setTtsError] = useState('');
+
+    const testLLM = useCallback(async () => {
+        const url = (settings.baseUrl || '').replace(/\/$/, '');
+        if (!url) { setLlmStatus('error'); setLlmError('No Base URL set.'); return; }
+        setLlmStatus('testing');
+        setLlmError('');
+        try {
+            const headers = {};
+            if (settings.apiKey) headers['Authorization'] = `Bearer ${settings.apiKey}`;
+            const res = await fetch(`${url}/models`, { headers, signal: AbortSignal.timeout(6000) });
+            if (res.ok) {
+                setLlmStatus('ok');
+            } else {
+                setLlmStatus('error');
+                setLlmError(`HTTP ${res.status}: ${res.statusText}`);
+            }
+        } catch (err) {
+            setLlmStatus('error');
+            setLlmError(err.message);
+        }
+    }, [settings.baseUrl, settings.apiKey]);
+
+    const testTTS = useCallback(async () => {
+        const url = (settings.ttsEndpoint || '').replace(/\/$/, '');
+        if (!url) { setTtsStatus('error'); setTtsError('No TTS Endpoint set.'); return; }
+        setTtsStatus('testing');
+        setTtsError('');
+        try {
+            const voice = settings.ttsVoice || 'af_heart';
+            const model = settings.ttsModel || 'kokoro';
+            const res = await fetch(`${url}/audio/speech`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, input: 'Test', voice }),
+                signal: AbortSignal.timeout(8000),
+            });
+            if (res.ok) {
+                setTtsStatus('ok');
+            } else {
+                setTtsStatus('error');
+                setTtsError(`HTTP ${res.status}: ${res.statusText}`);
+            }
+        } catch (err) {
+            setTtsStatus('error');
+            setTtsError(err.message);
+        }
+    }, [settings.ttsEndpoint, settings.ttsVoice, settings.ttsModel]);
+
+    function statusLabel(status, errMsg) {
+        if (status === 'testing') return <span className={styles.statusTesting}>🔄 Testing…</span>;
+        if (status === 'ok') return <span className={styles.statusOk}>✅ Connected</span>;
+        if (status === 'error') return <span className={styles.statusError}>⚠️ {errMsg || 'Error'}</span>;
+        return null;
+    }
+
     return (
         <div className={styles.container}>
 
@@ -100,6 +160,19 @@ export default function SettingsView() {
                         onBlur={(e) => updateNow('model', e.target.value)}
                         autoComplete="off"
                     />
+                </div>
+
+                <div className={styles.testRow}>
+                    <button
+                        className={styles.testBtn}
+                        onClick={testLLM}
+                        disabled={llmStatus === 'testing'}
+                        id="llm-test-btn"
+                        type="button"
+                    >
+                        Test Connection
+                    </button>
+                    {statusLabel(llmStatus, llmError)}
                 </div>
             </section>
 
@@ -174,6 +247,19 @@ export default function SettingsView() {
                         onChange={(v) => update('ttsSpeed', v)}
                         format={(v) => `${v.toFixed(1)}×`}
                     />
+                </div>
+
+                <div className={styles.testRow}>
+                    <button
+                        className={styles.testBtn}
+                        onClick={testTTS}
+                        disabled={ttsStatus === 'testing'}
+                        id="tts-test-btn"
+                        type="button"
+                    >
+                        Test TTS
+                    </button>
+                    {statusLabel(ttsStatus, ttsError)}
                 </div>
             </section>
 
