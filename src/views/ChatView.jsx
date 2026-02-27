@@ -192,37 +192,27 @@ export default function ChatView() {
         await refreshThreads();
     }, [activeThread, setActiveThreadTitle, refreshThreads]);
 
-    /* ── PTT: record start (also handles toggle-mode tap) ─────────── */
+    /* ── PTT: record start (hold) ──────────────────────────────────── */
     const handleRecordStart = useCallback(async () => {
         if (isStreaming) return;
-
-        // In toggle mode: if already recording, a tap = stop
-        if (asrMode === 'toggle' && isRecordingToggle) {
-            setIsRecordingToggle(false);
-            handleRecordStop();
-            return;
-        }
 
         // Interrupt any playing TTS immediately
         ttsHandleRef.current?.stop();
         ttsHandleRef.current = null;
         setMicError(null);
         setRecording(true);
-        if (asrMode === 'toggle') setIsRecordingToggle(true);
 
         const asrEndpoint = settings?.asrEndpoint?.trim();
         const useWhisper = !!asrEndpoint;
 
         if (useWhisper || !isSpeechAPIAvailable()) {
-            // Whisper endpoint path: capture audio blob on stop
+            // Whisper endpoint path: capture audio blob, stop on pointer-up
             try {
                 recorderRef.current = await startRecording();
-                // In toggle mode, don't auto-stop — wait for second tap
             } catch (err) {
                 if (err instanceof MicPermissionError) setMicError(err.message);
                 else setMicError(`Mic error: ${err.message}`);
                 setRecording(false);
-                setIsRecordingToggle(false);
             }
         } else {
             // Web Speech API path: recognition runs until stop() is called
@@ -230,17 +220,15 @@ export default function ChatView() {
                 onResult: (transcript) => {
                     if (transcript) handleSend(transcript);
                     speechSessionRef.current = null;
-                    setIsRecordingToggle(false);
                 },
                 onError: (err) => {
                     setMicError(err.message);
                     speechSessionRef.current = null;
-                    setIsRecordingToggle(false);
                 },
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isStreaming, asrMode, isRecordingToggle, settings]);
+    }, [isStreaming, settings]);
 
     /* ── PTT: record stop ──────────────────────────────────────────── */
     const handleRecordStop = useCallback(async () => {
