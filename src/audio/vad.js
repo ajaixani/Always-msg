@@ -12,7 +12,7 @@
  */
 
 const POLL_INTERVAL_MS = 30;    // how often to compute RMS (ms)
-const SILENCE_FRAMES_UNTIL_END = 27; // ~800 ms of silence before onSpeechEnd fires
+const SILENCE_FRAMES_UNTIL_END = 50; // ~1500 ms of silence before onSpeechEnd fires
 
 /**
  * Map a sensitivity value (0–1) to an RMS threshold.

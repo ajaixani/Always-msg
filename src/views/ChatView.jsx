@@ -363,8 +363,25 @@ export default function ChatView() {
         const asrEndpoint = settings?.asrEndpoint?.trim();
         const useWhisper = !!asrEndpoint;
 
+        // Change B: receive the already-open stream so VAD and recorder share one mic.
         async function startLiveListening(stream) {
             setListening(true);
+
+            // Change D: helper that (re)starts a Web Speech session and loops on result.
+            function startSession() {
+                session = createSpeechSession({
+                    onResult: (t) => {
+                        if (t) handleSend(t);
+                        session = null;
+                        if (!liveMuted) startSession(); // loop for the next utterance
+                    },
+                    onError: (e) => {
+                        setMicError(e.message);
+                        session = null;
+                    },
+                });
+            }
+
             vadLoopRef.current = createVAD({
                 stream,
                 sensitivity,
@@ -377,31 +394,40 @@ export default function ChatView() {
                 onSpeechEnd: async () => {
                     setVadActive(false);
                     if (useWhisper && recorder) {
-                        const blob = await recorder.stop();
+                        const blobPromise = recorder.stop();
                         recorder = null;
                         try {
+                            const blob = await blobPromise;
                             const text = await transcribeBlob(blob, settings);
                             if (text) handleSend(text);
                         } catch (err) { setMicError(err.message); }
+
+                        // Change C: restart recorder on the shared stream for the next utterance.
+                        if (!liveMuted) {
+                            recorder = await startRecording({ stream });
+                        }
                     } else if (!useWhisper && session) {
-                        session.stop();
-                        session = null;
+                        // Web Speech looping is handled inside startSession() via onResult.
+                        // Nothing extra needed here; the session will restart itself.
                     }
                 },
             });
 
+            // Change B: pass the shared stream into the recorder (no second getUserMedia).
             if (useWhisper) {
-                recorder = await startRecording();
+                recorder = await startRecording({ stream });
             } else if (isSpeechAPIAvailable()) {
-                session = createSpeechSession({
-                    onResult: (t) => { if (t) handleSend(t); },
-                    onError: (e) => setMicError(e.message),
-                });
+                startSession();
             }
         }
 
+        // Open one stream for both VAD and recorder.
+        let sharedStream = null;
         navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(startLiveListening)
+            .then((stream) => {
+                sharedStream = stream;
+                return startLiveListening(stream);
+            })
             .catch((err) => setMicError(err.message));
 
         return () => {
@@ -411,9 +437,11 @@ export default function ChatView() {
             setVadActive(false);
             recorder?.stop().catch(() => { });
             session?.stop();
+            // Change E: caller owns the shared stream — close it here on cleanup.
+            sharedStream?.getTracks().forEach((t) => t.stop());
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeThread, settings?.activeMode, settings?.vadSensitivity]);
+    }, [activeThread, settings?.activeMode, settings?.vadSensitivity, liveMuted]);
 
     /* ── Send a message (solo + group) ────────────────────────────── */
 
