@@ -8,6 +8,7 @@ import { createVAD } from '../audio/vad';
 import { isSpeechAPIAvailable, createSpeechSession, transcribeBlob } from '../audio/asrClient';
 import { speak } from '../audio/ttsClient';
 import { ttsPlayer } from '../audio/ttsPlayer';
+import { saveSetting } from '../db/settingsDb';
 import MessageBubble from '../components/MessageBubble';
 import ChatInput from '../components/ChatInput';
 import GroupSheet from '../components/GroupSheet';
@@ -48,6 +49,7 @@ export default function ChatView() {
     const setTTSPlaying = useAppStore((s) => s.setTTSPlaying);
     const setTTSLevel = useAppStore((s) => s.setTTSLevel);
     const isTTSPlaying = useAppStore((s) => s.isTTSPlaying);
+    const setSetting = useAppStore((s) => s.setSetting);
 
     // ── Thread list state ────────────────────────────────────────────
     const [threads, setThreads] = useState([]);   // all threads
@@ -88,6 +90,18 @@ export default function ChatView() {
 
     // ── Image attachment state (Phase 9) ────────────────────────────
     const [pendingImage, setPendingImage] = useState(null); // data URL | null
+
+    // ── ASR mode + live toggle ────────────────────────────────────────
+    // asrMode: 'hold' = hold button to record | 'toggle' = tap once to start, tap again to stop
+    const [asrMode, setAsrMode] = useState('hold');
+    const [isRecordingToggle, setIsRecordingToggle] = useState(false);
+
+    // Flip PUSH ↔ LIVE and persist immediately
+    const toggleLiveMode = useCallback(() => {
+        const next = (settings?.activeMode === 'live') ? 'push' : 'live';
+        setSetting('activeMode', next);
+        saveSetting('activeMode', next);
+    }, [settings?.activeMode, setSetting]);
 
     // Contacts in the active thread
     const threadContacts = activeThread
@@ -178,14 +192,23 @@ export default function ChatView() {
         await refreshThreads();
     }, [activeThread, setActiveThreadTitle, refreshThreads]);
 
-    /* ── PTT: record start ─────────────────────────────────────────── */
+    /* ── PTT: record start (also handles toggle-mode tap) ─────────── */
     const handleRecordStart = useCallback(async () => {
         if (isStreaming) return;
+
+        // In toggle mode: if already recording, a tap = stop
+        if (asrMode === 'toggle' && isRecordingToggle) {
+            setIsRecordingToggle(false);
+            handleRecordStop();
+            return;
+        }
+
         // Interrupt any playing TTS immediately
         ttsHandleRef.current?.stop();
         ttsHandleRef.current = null;
         setMicError(null);
         setRecording(true);
+        if (asrMode === 'toggle') setIsRecordingToggle(true);
 
         const asrEndpoint = settings?.asrEndpoint?.trim();
         const useWhisper = !!asrEndpoint;
@@ -194,26 +217,30 @@ export default function ChatView() {
             // Whisper endpoint path: capture audio blob on stop
             try {
                 recorderRef.current = await startRecording();
+                // In toggle mode, don't auto-stop — wait for second tap
             } catch (err) {
                 if (err instanceof MicPermissionError) setMicError(err.message);
                 else setMicError(`Mic error: ${err.message}`);
                 setRecording(false);
+                setIsRecordingToggle(false);
             }
         } else {
-            // Web Speech API path: recognition runs during hold
+            // Web Speech API path: recognition runs until stop() is called
             speechSessionRef.current = createSpeechSession({
                 onResult: (transcript) => {
                     if (transcript) handleSend(transcript);
                     speechSessionRef.current = null;
+                    setIsRecordingToggle(false);
                 },
                 onError: (err) => {
                     setMicError(err.message);
                     speechSessionRef.current = null;
+                    setIsRecordingToggle(false);
                 },
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isStreaming, settings]);
+    }, [isStreaming, asrMode, isRecordingToggle, settings]);
 
     /* ── PTT: record stop ──────────────────────────────────────────── */
     const handleRecordStop = useCallback(async () => {
@@ -677,41 +704,73 @@ export default function ChatView() {
                             aria-hidden="true"
                         />
 
-                        {/* Input row: camera/attach btn + ChatInput */}
+                        {/* Input row: mode controls + ChatInput */}
                         <div className={styles.inputRow}>
-                            {isLive && threadHasVision && (
-                                /* Camera button (Live mode) */
+                            {/* Left-side controls bar */}
+                            <div className={styles.inputControls}>
+                                {/* LIVE ↔ PUSH toggle pill */}
                                 <button
-                                    className={`${styles.cameraBtn} ${pendingImage ? styles.cameraBtnActive : ''}`}
-                                    onClick={handleCameraCapture}
-                                    aria-label="Capture camera frame"
-                                    title="Capture a frame from your camera"
+                                    className={`${styles.modePill} ${isLive ? styles.modePillLive : ''}`}
+                                    onClick={toggleLiveMode}
                                     type="button"
+                                    aria-label={isLive ? 'Switch to Push mode' : 'Switch to Live mode'}
+                                    title={isLive ? 'Live mode on – click to switch to Push' : 'Push mode – click to switch to Live'}
+                                    id="live-push-toggle"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M23 7l-7 5 7 5V7z" />
-                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                    </svg>
+                                    {isLive ? '🎙 LIVE' : '🖊 PUSH'}
                                 </button>
-                            )}
-                            {!isLive && threadHasVision && (
-                                /* Paperclip button (Push mode) */
-                                <button
-                                    className={`${styles.attachBtn} ${pendingImage ? styles.attachBtnActive : ''}`}
-                                    onClick={handleAttachFile}
-                                    aria-label="Attach image"
-                                    title="Attach an image"
-                                    type="button"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                                    </svg>
-                                </button>
-                            )}
+
+                                {/* ASR mode: HOLD ↔ TAP (only in push mode) */}
+                                {!isLive && (
+                                    <button
+                                        className={`${styles.modePill} ${asrMode === 'toggle' ? styles.modePillActive : ''}`}
+                                        onClick={() => setAsrMode((m) => m === 'hold' ? 'toggle' : 'hold')}
+                                        type="button"
+                                        aria-label={asrMode === 'hold' ? 'Hold mode – click for Tap mode' : 'Tap mode – click for Hold mode'}
+                                        title={asrMode === 'hold' ? 'Hold to record. Click for tap-to-record.' : 'Tap to start/stop recording. Click for hold mode.'}
+                                        id="asr-mode-toggle"
+                                    >
+                                        {asrMode === 'hold' ? '⏹ HOLD' : '🔴 TAP'}
+                                        {isRecordingToggle && <span className={styles.recDot} />}
+                                    </button>
+                                )}
+
+                                {/* Camera button (Live mode, vision capable) */}
+                                {isLive && threadHasVision && (
+                                    <button
+                                        className={`${styles.cameraBtn} ${pendingImage ? styles.cameraBtnActive : ''}`}
+                                        onClick={handleCameraCapture}
+                                        aria-label="Capture camera frame"
+                                        title="Capture a frame from your camera"
+                                        type="button"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M23 7l-7 5 7 5V7z" />
+                                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                        </svg>
+                                    </button>
+                                )}
+
+                                {/* Paperclip button (Push mode, vision capable) */}
+                                {!isLive && threadHasVision && (
+                                    <button
+                                        className={`${styles.attachBtn} ${pendingImage ? styles.attachBtnActive : ''}`}
+                                        onClick={handleAttachFile}
+                                        aria-label="Attach image"
+                                        title="Attach an image"
+                                        type="button"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+
                             <ChatInput
                                 onSend={handleSend}
                                 onRecordStart={handleRecordStart}
-                                onRecordStop={handleRecordStop}
+                                onRecordStop={asrMode === 'hold' ? handleRecordStop : undefined}
                                 disabled={isStreaming}
                                 placeholder={`Message ${threadTitle(activeThread)}…`}
                             />

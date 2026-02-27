@@ -188,8 +188,12 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* DO NOT use overflow:hidden here — it clips the ⋯ menu popover */
+    overflow: visible;
     background: var(--color-bg);
+    position: relative;
+    /* stacking context for child popovers */
+    z-index: 0;
 }
 
 /* ── Back button ────────────────────────────────────────────────── */
@@ -474,4 +478,65 @@
 .menuItem:hover {
     background: var(--color-bg);
     color: var(--color-text-primary);
+}
+/* ── Input controls bar (live/push pill + ASR mode) ─────────── */
+.inputControls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+    padding: 0 var(--space-2);
+    flex-wrap: wrap;
+}
+
+.modePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    position: relative;
+    user-select: none;
+}
+
+.modePill:hover {
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
+}
+
+.modePillLive {
+    border-color: #ff3b5c;
+    color: #ff3b5c;
+    background: rgba(255, 59, 92, 0.08);
+    animation: livePulse 2.5s ease-in-out infinite;
+}
+
+.modePillActive {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: rgba(var(--color-accent-rgb, 90, 219, 133), 0.08);
+}
+
+.recDot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ff3b5c;
+    margin-left: 2px;
+    animation: recPulse 1s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
 }

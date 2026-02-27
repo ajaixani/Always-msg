@@ -88,4 +88,5 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: var(--space-5);
+    padding-bottom: calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + var(--space-6));
 }

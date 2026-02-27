@@ -267,18 +267,9 @@ export default function SettingsView() {
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>Audio / VAD</h2>
 
-                <div className={styles.field}>
-                    <label className={styles.label}>Active Mode</label>
-                    <SegmentedControl
-                        name="Active mode"
-                        options={[
-                            { value: 'push', label: 'Push-to-Talk' },
-                            { value: 'live', label: 'Live' },
-                        ]}
-                        value={settings.activeMode ?? 'push'}
-                        onChange={(v) => update('activeMode', v)}
-                    />
-                </div>
+                <p className={styles.sectionNote}>
+                    LIVE / PUSH mode is now a toggle pill in the chat input area.
+                </p>
 
                 <div className={styles.field}>
                     <Slider

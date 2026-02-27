@@ -32,7 +32,9 @@ export async function speak(text, settings, { onPlay, onStop, onLevel } = {}) {
         throw new TTSError('No TTS endpoint configured. Set one in Settings → TTS Configuration.');
     }
 
-    const url = `${endpoint.replace(/\/$/, '')}/v1/audio/speech`;
+    // Normalise: strip trailing /v1 or /v1/ then add the full path
+    const base = endpoint.replace(/\/v1\/?$/, '').replace(/\/$/, '');
+    const url = `${base}/v1/audio/speech`;
 
     const body = {
         model: settings?.ttsModel || 'kokoro',
