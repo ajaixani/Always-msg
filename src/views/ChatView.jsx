@@ -363,6 +363,10 @@ export default function ChatView() {
             let accumulated = '';
             const isGroup = threadContacts.length > 1;
 
+            // Sentence-streaming TTS setup
+            let ttsBuffer = '';
+            const ttsEndpoint = contact.ttsConfig?.endpoint?.trim() || settings?.ttsEndpoint?.trim();
+
             await streamChat({
                 contact,
                 settings,
@@ -371,10 +375,40 @@ export default function ChatView() {
                 onToken: (chunk) => {
                     accumulated += chunk;
                     setStreamingText(accumulated);
+
+                    // ── Sentence-streaming TTS ──────────────────────────
+                    // Speak each sentence as it completes, don't wait for onDone.
+                    if (!ttsEndpoint) return;
+                    // Detect sentence boundaries: . ! ? followed by space/newline, or double newline
+                    const boundary = /[.!?][)\]"'`]?\s+|[.!?][)\]"'`]?$/m;
+                    let rest = ttsBuffer;
+                    rest += chunk;
+                    let match;
+                    // eslint-disable-next-line no-cond-assign
+                    while ((match = boundary.exec(rest)) !== null) {
+                        const sentence = rest.slice(0, match.index + match[0].length).trim();
+                        rest = rest.slice(match.index + match[0].length);
+                        if (sentence.length > 2) {
+                            ttsBuffer = rest;
+                            const ttsSettings = {
+                                ...settings,
+                                ttsEndpoint,
+                                ttsVoice: contact.ttsConfig?.voice?.trim() || settings?.ttsVoice || 'af_heart',
+                            };
+                            speak(sentence, ttsSettings, {
+                                onPlay: () => setTTSPlaying(true),
+                                onStop: () => setTTSPlaying(false),
+                                onLevel: (rms) => setTTSLevel(rms),
+                            }).then((h) => { ttsHandleRef.current = h; }).catch((err) => {
+                                console.warn('[TTS sentence]', err.message);
+                            });
+                            return;
+                        }
+                    }
+                    ttsBuffer = rest;
                 },
                 onDone: async (fullText) => {
                     const saved = await addMessage(activeThread.id, 'assistant', fullText || accumulated);
-                    // Tag group messages with the sender contact id for label rendering
                     setMessages((prev) => [
                         ...prev,
                         { ...saved, _contactId: isGroup ? contact.id : undefined },
@@ -382,29 +416,29 @@ export default function ChatView() {
                     accumulated = '';
                     setStreamingText('');
 
-                    // ── TTS: speak the assistant reply ──────────────
-                    const textToSpeak = fullText || saved.content || '';
-                    // Merge: contact-level ttsConfig wins over global settings
-                    const ttsEndpoint = contact.ttsConfig?.endpoint?.trim() || settings?.ttsEndpoint?.trim();
-                    if (textToSpeak && ttsEndpoint) {
+                    // ── Speak any remaining buffered text ────────────────
+                    const remaining = ttsBuffer.trim();
+                    ttsBuffer = '';
+                    if (remaining.length > 2 && ttsEndpoint) {
                         const ttsSettings = {
                             ...settings,
                             ttsEndpoint,
                             ttsVoice: contact.ttsConfig?.voice?.trim() || settings?.ttsVoice || 'af_heart',
                         };
                         try {
-                            const handle = await speak(textToSpeak, ttsSettings, {
+                            const handle = await speak(remaining, ttsSettings, {
                                 onPlay: () => setTTSPlaying(true),
                                 onStop: () => setTTSPlaying(false),
                                 onLevel: (rms) => setTTSLevel(rms),
                             });
                             ttsHandleRef.current = handle;
                         } catch (err) {
-                            console.warn('[TTS]', err.message);
+                            console.warn('[TTS remainder]', err.message);
                         }
                     }
                 },
                 onError: async (err) => {
+                    ttsBuffer = ''; // clear buffer on error
                     const errMsg = await addMessage(activeThread.id, 'assistant', `⚠️ ${err.message}`);
                     setMessages((prev) => [
                         ...prev,
@@ -704,73 +738,53 @@ export default function ChatView() {
                             aria-hidden="true"
                         />
 
-                        {/* Input row: mode controls + ChatInput */}
+                        {/* ─── Input row: left rail + ChatInput ────────────────────── */}
                         <div className={styles.inputRow}>
-                            {/* Left-side controls bar */}
-                            <div className={styles.inputControls}>
-                                {/* LIVE ↔ PUSH toggle pill */}
+
+                            {/* Slim vertical left rail: LIVE pill + attach icon */}
+                            <div className={styles.leftRail}>
+
+                                {/* LIVE ↔ PUSH oval */}
                                 <button
-                                    className={`${styles.modePill} ${isLive ? styles.modePillLive : ''}`}
+                                    className={`${styles.railPill} ${isLive ? styles.railPillLive : ''}`}
                                     onClick={toggleLiveMode}
                                     type="button"
                                     aria-label={isLive ? 'Switch to Push mode' : 'Switch to Live mode'}
-                                    title={isLive ? 'Live mode on – click to switch to Push' : 'Push mode – click to switch to Live'}
                                     id="live-push-toggle"
                                 >
-                                    {isLive ? '🎙 LIVE' : '🖊 PUSH'}
+                                    {isLive ? '🔴' : '🖊'}
+                                    <span>{isLive ? 'LIVE' : 'PUSH'}</span>
                                 </button>
 
-                                {/* ASR mode: HOLD ↔ TAP (only in push mode) */}
-                                {!isLive && (
+                                {/* Attach / Camera icon — only when thread supports vision */}
+                                {threadHasVision && (
                                     <button
-                                        className={`${styles.modePill} ${asrMode === 'toggle' ? styles.modePillActive : ''}`}
-                                        onClick={() => setAsrMode((m) => m === 'hold' ? 'toggle' : 'hold')}
+                                        className={`${styles.railIcon} ${pendingImage ? styles.railIconActive : ''}`}
+                                        onClick={isLive ? handleCameraCapture : handleAttachFile}
                                         type="button"
-                                        aria-label={asrMode === 'hold' ? 'Hold mode – click for Tap mode' : 'Tap mode – click for Hold mode'}
-                                        title={asrMode === 'hold' ? 'Hold to record. Click for tap-to-record.' : 'Tap to start/stop recording. Click for hold mode.'}
-                                        id="asr-mode-toggle"
+                                        aria-label={isLive ? 'Capture camera frame' : 'Attach image'}
+                                        id="attach-btn"
                                     >
-                                        {asrMode === 'hold' ? '⏹ HOLD' : '🔴 TAP'}
-                                        {isRecordingToggle && <span className={styles.recDot} />}
-                                    </button>
-                                )}
-
-                                {/* Camera button (Live mode, vision capable) */}
-                                {isLive && threadHasVision && (
-                                    <button
-                                        className={`${styles.cameraBtn} ${pendingImage ? styles.cameraBtnActive : ''}`}
-                                        onClick={handleCameraCapture}
-                                        aria-label="Capture camera frame"
-                                        title="Capture a frame from your camera"
-                                        type="button"
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M23 7l-7 5 7 5V7z" />
-                                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                        </svg>
-                                    </button>
-                                )}
-
-                                {/* Paperclip button (Push mode, vision capable) */}
-                                {!isLive && threadHasVision && (
-                                    <button
-                                        className={`${styles.attachBtn} ${pendingImage ? styles.attachBtnActive : ''}`}
-                                        onClick={handleAttachFile}
-                                        aria-label="Attach image"
-                                        title="Attach an image"
-                                        type="button"
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                                        </svg>
+                                        {isLive ? (
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M23 7l-7 5 7 5V7z" />
+                                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                            </svg>
+                                        ) : (
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                                            </svg>
+                                        )}
                                     </button>
                                 )}
                             </div>
 
+                            {/* Chat input: mic (tap=toggle / hold=PTT) + textarea + send */}
                             <ChatInput
                                 onSend={handleSend}
+                                onTap={handleRecordStart}
                                 onRecordStart={handleRecordStart}
-                                onRecordStop={asrMode === 'hold' ? handleRecordStop : undefined}
+                                onRecordStop={handleRecordStop}
                                 disabled={isStreaming}
                                 placeholder={`Message ${threadTitle(activeThread)}…`}
                             />

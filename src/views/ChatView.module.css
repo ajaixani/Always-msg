@@ -540,3 +540,78 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
 }
+
+/* ── Compact vertical left rail ─────────────────────────────── */
+.leftRail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    flex-shrink: 0;
+    padding: var(--space-1) var(--space-2);
+}
+
+/* Oval LIVE/PUSH pill */
+.railPill {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 9px;
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+    min-width: 36px;
+}
+
+.railPill:hover {
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
+}
+
+.railPillLive {
+    border-color: #ff3b5c;
+    color: #ff3b5c;
+    background: rgba(255, 59, 92, 0.08);
+    animation: livePulse 2.5s ease-in-out infinite;
+}
+
+/* Compact icon button */
+.railIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.railIcon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.railIcon:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.railIconActive {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: rgba(var(--color-accent-rgb, 90, 219, 133), 0.1);
+}

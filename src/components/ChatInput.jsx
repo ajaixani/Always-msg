@@ -14,6 +14,7 @@ import styles from './ChatInput.module.css';
  */
 export default function ChatInput({
     onSend,
+    onTap,
     onRecordStart,
     onRecordStop,
     disabled = false,
@@ -43,8 +44,9 @@ export default function ChatInput({
 
     return (
         <div className={styles.bar}>
-            {/* PTT mic button — left of textarea */}
+            {/* PTT mic button — dual function: tap=toggle, hold=PTT */}
             <PushToTalkButton
+                onTap={onTap}
                 onRecordStart={onRecordStart}
                 onRecordStop={onRecordStop}
                 disabled={disabled}

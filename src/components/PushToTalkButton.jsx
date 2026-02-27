@@ -3,39 +3,77 @@ import useAppStore from '../state/useAppStore';
 import styles from './PushToTalkButton.module.css';
 
 /**
- * PushToTalkButton — hold-to-record mic button.
+ * PushToTalkButton — dual-function mic button.
+ *
+ * Tap  (< 300 ms)  → onTap()    — triggers ASR toggle mode (start/stop)
+ * Hold (≥ 300 ms)  → onRecordStart on press, onRecordStop on release (PTT)
  *
  * Props:
- *   onRecordStart  () => void   — called on pointerdown
- *   onRecordStop   () => void   — called on pointerup / pointerleave / pointercancel
- *   disabled       boolean
+ *   onTap           () => void   — called on a short tap
+ *   onRecordStart   () => void   — called when hold begins
+ *   onRecordStop    () => void   — called when hold ends
+ *   disabled        boolean
  */
-export default function PushToTalkButton({ onRecordStart, onRecordStop, disabled = false }) {
+export default function PushToTalkButton({
+    onTap,
+    onRecordStart,
+    onRecordStop,
+    disabled = false,
+}) {
     const isRecording = useAppStore((s) => s.isRecording);
     const micError = useAppStore((s) => s.micError);
     const vadActive = useAppStore((s) => s.vadActive);
 
-    const holding = useRef(false);
+    const pressStartRef = useRef(null);   // timestamp of pointerdown
+    const holdFiredRef = useRef(false);   // did we fire hold?
+    const holdTimerRef = useRef(null);    // setTimeout handle
+
+    const HOLD_MS = 300;
 
     const handleDown = useCallback((e) => {
         if (disabled) return;
-        e.preventDefault();       // prevent text-selection on long-press
-        holding.current = true;
-        onRecordStart?.();
+        e.preventDefault();
+        pressStartRef.current = Date.now();
+        holdFiredRef.current = false;
+
+        // After HOLD_MS without release → start PTT hold
+        holdTimerRef.current = setTimeout(() => {
+            holdFiredRef.current = true;
+            onRecordStart?.();
+        }, HOLD_MS);
     }, [disabled, onRecordStart]);
 
     const handleUp = useCallback(() => {
-        if (!holding.current) return;
-        holding.current = false;
-        onRecordStop?.();
-    }, [onRecordStop]);
+        clearTimeout(holdTimerRef.current);
+        const elapsed = Date.now() - (pressStartRef.current ?? 0);
 
-    // Also release if pointer leaves the button while held
+        if (holdFiredRef.current) {
+            // Was a hold — release PTT
+            onRecordStop?.();
+        } else if (elapsed < HOLD_MS) {
+            // Was a tap — trigger ASR toggle
+            onTap?.();
+        }
+        holdFiredRef.current = false;
+        pressStartRef.current = null;
+    }, [onTap, onRecordStop]);
+
+    // Release hold if pointer leaves the window
     useEffect(() => {
-        const up = () => { if (holding.current) { holding.current = false; onRecordStop?.(); } };
+        const up = () => {
+            if (holdFiredRef.current) {
+                clearTimeout(holdTimerRef.current);
+                holdFiredRef.current = false;
+                pressStartRef.current = null;
+                onRecordStop?.();
+            }
+        };
         window.addEventListener('pointerup', up);
         return () => window.removeEventListener('pointerup', up);
     }, [onRecordStop]);
+
+    // Clean up timer on unmount
+    useEffect(() => () => clearTimeout(holdTimerRef.current), []);
 
     let stateClass = styles.idle;
     if (micError) stateClass = styles.error;
@@ -49,13 +87,17 @@ export default function PushToTalkButton({ onRecordStart, onRecordStop, disabled
             onPointerUp={handleUp}
             onPointerCancel={handleUp}
             disabled={disabled}
-            aria-label={isRecording ? 'Recording… release to send' : 'Hold to speak'}
+            aria-label={
+                isRecording
+                    ? 'Recording — release to send (hold) or tap to stop'
+                    : 'Tap to speak (toggle) or hold for push-to-talk'
+            }
             aria-pressed={isRecording}
             id="push-to-talk-btn"
-            // Prevent mobile scroll while holding
             style={{ touchAction: 'none' }}
+            title="Tap = toggle recording  •  Hold = push-to-talk"
         >
-            {/* Pulsing ring (only shown while recording) */}
+            {/* Pulsing ring while recording */}
             {isRecording && <span className={styles.ring} aria-hidden="true" />}
 
             {/* Mic icon */}
