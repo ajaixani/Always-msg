@@ -66,4 +66,11 @@ export default defineConfig({
             },
         }),
     ],
+    optimizeDeps: {
+        // Prevent Vite from pre-bundling these packages.
+        // onnxruntime-web and vad-web dynamically load WASM files at runtime
+        // using relative paths. Vite's optimizer rewrites those paths and breaks
+        // the loading. Excluding them preserves the original resolution behaviour.
+        exclude: ['onnxruntime-web', '@ricky0123/vad-web'],
+    },
 });

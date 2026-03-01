@@ -14,9 +14,10 @@
 import * as ort from "onnxruntime-web";
 import { MicVAD } from "@ricky0123/vad-web";
 
-// Configure ONNX Runtime to load WASM binaries from CDN
-// (Vite can't serve them properly from within node_modules out of the box)
-ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/";
+// Configure ONNX Runtime to load WASM binaries from the local public/ directory.
+// The .wasm and .mjs files from onnxruntime-web are copied into public/ so Vite
+// serves them correctly at the root path ("/").
+ort.env.wasm.wasmPaths = "/";
 
 const POLL_INTERVAL_MS = 30; // how often to compute RMS (ms) for visualizer
 
