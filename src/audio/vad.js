@@ -11,15 +11,7 @@
  *   vad.destroy();
  */
 
-import * as ort from "onnxruntime-web";
-import * as vadModule from "@ricky0123/vad-web";
-
-const MicVAD = vadModule.MicVAD ?? vadModule.default?.MicVAD;
-
-// Configure ONNX Runtime to load WASM binaries from the local public/ directory.
-// The .wasm and .mjs files from onnxruntime-web are copied into public/ so Vite
-// serves them correctly at the root path ("/").
-ort.env.wasm.wasmPaths = "/";
+const MicVAD = window.vad?.MicVAD;
 
 const POLL_INTERVAL_MS = 30; // how often to compute RMS (ms) for visualizer
 
@@ -37,6 +29,45 @@ const POLL_INTERVAL_MS = 30; // how often to compute RMS (ms) for visualizer
 export async function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSpeechEnd, onLevel }) {
     let speaking = false;
 
+    // 1. Dynamically load ONNX Runtime Web as an ESM module directly from the public folder.
+    // We inject this as a string so Vite's AST analyzer doesn't see the import and 
+    // throw a "Cannot import non-asset from /public" error.
+    if (!window.ort) {
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.textContent = `
+                import * as ortObj from '/ort.mjs';
+                window.ort = ortObj;
+                window.dispatchEvent(new Event('ort-loaded'));
+            `;
+            script.onerror = () => reject(new Error("Failed to load ONNX Runtime Web"));
+            window.addEventListener('ort-loaded', resolve, { once: true });
+            document.head.appendChild(script);
+        });
+    }
+
+    // 2. Inject vad-web's UMD bundle script into the DOM and wait for it to load.
+    // This strictly bypasses Vite's CJS dependencies solver while maintaining 
+    // the correct load order (after window.ort is set).
+    if (!window.vad) {
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '/vad-web.bundle.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error("Failed to load VAD bundle"));
+            document.head.appendChild(script);
+        });
+    }
+
+    const MicVAD = window.vad?.MicVAD;
+    if (!MicVAD) {
+        throw new Error("MicVAD failed to initialize from the local bundle.");
+    }
+
+    // Wait until global ONNX environment is ready and configure it.
+    window.ort.env.wasm.wasmPaths = "/";
+
     // Use Neural VAD via AudioWorklet
     let myvad;
     try {
@@ -45,9 +76,10 @@ export async function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSp
             positiveSpeechThreshold: 0.5, // Sensitivity for speech detection
             minSpeechFrames: 7,           // ~200ms (prevent clicks/pops)
             redemptionFrames: 50,         // ~1500ms (thinking pauses before onSpeechEnd)
-            // Explicitly load model + worklet from CDN to avoid Vite serving issues
-            baseAssetPath: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/',
-            workletURL: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js',
+            // Load from local public/ directory instead of CDN to avoid network blocks 
+            // and Vite serving issues.
+            baseAssetPath: '/',
+            workletURL: '/vad.worklet.bundle.min.js',
             onSpeechStart: () => {
                 speaking = true;
                 onSpeechStart?.();
