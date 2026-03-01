@@ -99,7 +99,9 @@ export async function transcribeBlob(blob, settings) {
         throw new Error('No ASR endpoint configured. Set one in Settings → Audio.');
     }
 
-    const url = `${endpoint.replace(/\/$/, '')}/v1/audio/transcriptions`;
+    // Normalise: strip trailing /v1 or /v1/ then add the full path
+    const base = endpoint.replace(/\/v1\/?$/, '').replace(/\/$/, '');
+    const url = `${base}/v1/audio/transcriptions`;
 
     const form = new FormData();
     form.append('file', blob, `recording.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
@@ -110,20 +112,25 @@ export async function transcribeBlob(blob, settings) {
         headers['Authorization'] = `Bearer ${settings.asrApiKey.trim()}`;
     }
 
+    console.log(`[ASR] POST ${url} | blob size: ${blob.size} bytes, type: ${blob.type}`);
+
     let response;
     try {
         response = await fetch(url, { method: 'POST', headers, body: form });
     } catch (err) {
+        console.error('[ASR] Endpoint unreachable:', err);
         throw new Error(`ASR endpoint unreachable: ${err.message}`);
     }
 
     if (!response.ok) {
         let detail = response.statusText;
         try { detail = (await response.json()).error?.message || detail; } catch { }
+        console.error(`[ASR] Error response: ${response.status} ${detail}`);
         throw new Error(`ASR error ${response.status}: ${detail}`);
     }
 
     const data = await response.json();
+    console.log('[ASR] Transcription result:', data.text);
     return (data.text || '').trim();
 }
 

@@ -30,20 +30,29 @@ export async function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSp
     let speaking = false;
 
     // Use Neural VAD via AudioWorklet
-    const myvad = await micVAD.new({
-        stream,
-        positiveSpeechThreshold: 0.5, // Sensitivity for speech detection
-        minSpeechFrames: 7,           // ~200ms (prevent clicks/pops)
-        redemptionFrames: 50,         // ~1500ms (thinking pauses before onSpeechEnd)
-        onSpeechStart: () => {
-            speaking = true;
-            onSpeechStart?.();
-        },
-        onSpeechEnd: () => {
-            speaking = false;
-            onSpeechEnd?.();
-        },
-    });
+    let myvad;
+    try {
+        myvad = await micVAD.new({
+            stream,
+            positiveSpeechThreshold: 0.5, // Sensitivity for speech detection
+            minSpeechFrames: 7,           // ~200ms (prevent clicks/pops)
+            redemptionFrames: 50,         // ~1500ms (thinking pauses before onSpeechEnd)
+            // Explicitly load model + worklet from CDN to avoid Vite serving issues
+            modelURL: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/silero_vad_legacy.onnx',
+            workletURL: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js',
+            onSpeechStart: () => {
+                speaking = true;
+                onSpeechStart?.();
+            },
+            onSpeechEnd: () => {
+                speaking = false;
+                onSpeechEnd?.();
+            },
+        });
+    } catch (err) {
+        console.error('[VAD] Failed to initialise neural VAD:', err);
+        throw new Error(`Voice Activity Detection failed to load: ${err.message}`);
+    }
 
     myvad.start();
 

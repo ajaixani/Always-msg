@@ -188,7 +188,8 @@ class TTSPlayer {
     // ── Level metering ───────────────────────────────────────────────
 
     _attachAnalyser(audioEl, onLevel) {
-        if (!onLevel) return;
+        // Always create the analyser so SpectrographMouth can read FFT data
+        // via ttsPlayer.getAnalyser(), even when onLevel is not provided.
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             this._audioCtx = ctx;
@@ -199,16 +200,18 @@ class TTSPlayer {
             analyser.connect(ctx.destination);
             this._analyser = analyser;
 
-            const data = new Float32Array(analyser.fftSize);
-            const tick = () => {
-                if (!this._analyser) return;
-                analyser.getFloatTimeDomainData(data);
-                let sum = 0;
-                for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
-                onLevel(Math.sqrt(sum / data.length));
+            if (onLevel) {
+                const data = new Float32Array(analyser.fftSize);
+                const tick = () => {
+                    if (!this._analyser) return;
+                    analyser.getFloatTimeDomainData(data);
+                    let sum = 0;
+                    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+                    onLevel(Math.sqrt(sum / data.length));
+                    this._levelRafId = requestAnimationFrame(tick);
+                };
                 this._levelRafId = requestAnimationFrame(tick);
-            };
-            this._levelRafId = requestAnimationFrame(tick);
+            }
         } catch { /* no level metering */ }
     }
 }
