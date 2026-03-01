@@ -7,6 +7,7 @@
  */
 
 import { ttsPlayer } from './ttsPlayer.js';
+import { cleanTextForTTS } from './ttsPreprocessor.js';
 
 export class TTSError extends Error {
     constructor(message) {
@@ -36,9 +37,11 @@ export async function speak(text, settings, { onPlay, onStop, onLevel } = {}) {
     const base = endpoint.replace(/\/v1\/?$/, '').replace(/\/$/, '');
     const url = `${base}/v1/audio/speech`;
 
+    const cleanedText = cleanTextForTTS(text, settings);
+
     const body = {
         model: settings?.ttsModel || 'kokoro',
-        input: text,
+        input: cleanedText,
         voice: settings?.ttsVoice || 'af_heart',
         speed: Number(settings?.ttsSpeed ?? 1.0),
         response_format: 'mp3',

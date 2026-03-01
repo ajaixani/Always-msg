@@ -263,7 +263,36 @@ export default function SettingsView() {
                 </div>
             </section>
 
-            {/* ─────────────── Audio / VAD ─────────────────────── */}
+            {/* ─────────────── TTS Text Filter ─────────────────── */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>TTS Text Filter</h2>
+                <p className={styles.sectionNote}>
+                    Strip LLM stage directions before sending to the voice engine.
+                    Chat bubbles always show the full, unedited text.
+                </p>
+
+                {[
+                    { key: 'tts_remove_special_char', label: 'Strip Emojis 🎉', def: true },
+                    { key: 'tts_ignore_parentheses', label: 'Strip (parentheses)', def: true },
+                    { key: 'tts_ignore_brackets', label: 'Strip [brackets]', def: true },
+                    { key: 'tts_ignore_angle_brackets', label: 'Strip <angle brackets>', def: true },
+                    { key: 'tts_ignore_asterisks', label: 'Strip *asterisk emotes*', def: false },
+                ].map(({ key, label, def }) => (
+                    <div className={styles.field} key={key}>
+                        <label className={styles.label}>
+                            <input
+                                id={`settings-${key}`}
+                                type="checkbox"
+                                checked={settings[key] ?? def}
+                                onChange={(e) => update(key, e.target.checked)}
+                                style={{ marginRight: 8 }}
+                            />
+                            {label}
+                        </label>
+                    </div>
+                ))}
+            </section>
+
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>Audio / VAD</h2>
 
