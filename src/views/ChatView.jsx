@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import useAppStore from '../state/useAppStore';
 import { getAllThreads, getOrCreateThread, createGroupThread, deleteThread, updateThreadTimestamp } from '../db/threadsDb';
 import { getMessages, addMessage, getLastMessage } from '../db/messagesDb';
-import { streamChat } from '../llm/llmClient';
+import { streamChat, streamChatWithLimen } from '../llm/llmClient';
 import { startRecording, MicPermissionError } from '../audio/micCapture';
 import { createVAD } from '../audio/vad';
 import { isSpeechAPIAvailable, createSpeechSession, transcribeBlob } from '../audio/asrClient';
@@ -16,6 +16,7 @@ import ImagePreview from '../components/ImagePreview';
 import SummarizerSheet from '../components/SummarizerSheet';
 import SeedCrystalSheet from '../components/SeedCrystalSheet';
 import SpectrographMouth from '../components/SpectrographMouth';
+import StaminaBar from '../components/StaminaBar';
 import styles from './ChatView.module.css';
 
 /** Format a timestamp as a relative label like "2m ago", "3h ago", "Mon" */
@@ -67,6 +68,51 @@ export default function ChatView() {
     const [seedMode, setSeedMode] = useState(null); // null | 'current' | 'single'
     const [menuOpen, setMenuOpen] = useState(false);
     const menuWrapperRef = useRef(null);
+
+    // ── LimenLT: stamina state + sleep handler ───────────────────────
+    const [stamina, setStamina] = useState(100);
+    const [isSleeping, setIsSleeping] = useState(false);
+    const staminaPollRef = useRef(null);
+
+    // Poll stamina every 5 s when a limen-enabled contact is active
+    useEffect(() => {
+        clearInterval(staminaPollRef.current);
+        const contact = threadContacts?.[0];
+        if (!contact?.limenEnabled) return;
+        staminaPollRef.current = setInterval(async () => {
+            const { getEngineForContact: gef } = await import('../llm/limenRegistry.js');
+            const eng = await gef(contact, useAppStore.getState().settings);
+            setStamina(eng.getStamina());
+        }, 5000);
+        return () => clearInterval(staminaPollRef.current);
+    }, [threadContacts]);
+
+    async function handleSleep() {
+        const contact = threadContacts?.[0];
+        if (!contact?.limenEnabled || isSleeping) return;
+        setIsSleeping(true);
+        try {
+            const { getEngineForContact: gef } = await import('../llm/limenRegistry.js');
+            const eng = await gef(contact, useAppStore.getState().settings);
+            const sessionWeather = {
+                fiveWs: {
+                    who: [contact.name ?? 'user'],
+                    what: ['conversation'],
+                    where: ['Always-msg'],
+                    when: new Date().toISOString().slice(0, 7),
+                    why: ['communication'],
+                },
+                senses: { sight: [], sound: [], smell: [], touch: [], taste: [] },
+                vibe: 'conversational',
+            };
+            await eng.sleep(sessionWeather);
+            setStamina(100);
+        } catch (e) {
+            console.warn('[Limen] Manual sleep failed:', e.message);
+        } finally {
+            setIsSleeping(false);
+        }
+    }
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -479,7 +525,7 @@ export default function ChatView() {
             let accumulated = '';
             const isGroup = threadContacts.length > 1;
 
-            // ── Sentence-streaming TTS: sequential queue ───────────────
+            // ── Sentence-streaming TTS: sequential queue ─────────────────────
             const ttsEndpoint = contact.ttsConfig?.endpoint?.trim() || settings?.ttsEndpoint?.trim();
             const ttsSettings = ttsEndpoint ? {
                 ...settings,
@@ -510,62 +556,82 @@ export default function ChatView() {
                     });
             }
 
-            await streamChat({
-                contact,
-                settings,
-                messages: llmMessages,
-                imageDataUrl: imageToSend,
-                onToken: (chunk) => {
-                    accumulated += chunk;
-                    setStreamingText(accumulated);
+            const onToken = (chunk) => {
+                accumulated += chunk;
+                setStreamingText(accumulated);
 
-                    // ── Sentence-streaming TTS ──────────────────────────
-                    if (!ttsSettings) return;
-                    let rest = ttsBuffer + chunk;
-                    // Sentence boundary: . ! ? optionally followed by closing punctuation + whitespace
-                    const boundary = /[.!?][)\]"'`]?\s+/g;
-                    let lastIndex = 0;
-                    let match;
-                    // eslint-disable-next-line no-cond-assign
-                    while ((match = boundary.exec(rest)) !== null) {
-                        const sentence = rest.slice(lastIndex, match.index + match[0].length).trim();
-                        lastIndex = match.index + match[0].length;
-                        if (sentence.length > 3) {
-                            ttsQueue.push(sentence);
-                            flushTTSQueue();
-                        }
-                    }
-                    ttsBuffer = rest.slice(lastIndex);
-                },
-                onDone: async (fullText) => {
-                    const saved = await addMessage(activeThread.id, 'assistant', fullText || accumulated);
-                    setMessages((prev) => [
-                        ...prev,
-                        { ...saved, _contactId: isGroup ? contact.id : undefined },
-                    ]);
-                    accumulated = '';
-                    setStreamingText('');
-
-                    // Speak any remaining fragment
-                    const remaining = ttsBuffer.trim();
-                    ttsBuffer = '';
-                    if (remaining.length > 2 && ttsSettings) {
-                        ttsQueue.push(remaining);
+                // ── Sentence-streaming TTS ───────────────────────────────
+                if (!ttsSettings) return;
+                let rest = ttsBuffer + chunk;
+                const boundary = /[.!?][)\]"'`]?\s+/g;
+                let lastIndex = 0;
+                let match;
+                // eslint-disable-next-line no-cond-assign
+                while ((match = boundary.exec(rest)) !== null) {
+                    const sentence = rest.slice(lastIndex, match.index + match[0].length).trim();
+                    lastIndex = match.index + match[0].length;
+                    if (sentence.length > 3) {
+                        ttsQueue.push(sentence);
                         flushTTSQueue();
                     }
-                },
-                onError: async (err) => {
-                    ttsBuffer = '';
-                    ttsQueue.length = 0; // discard any queued sentences
-                    const errMsg = await addMessage(activeThread.id, 'assistant', `⚠️ ${err.message}`);
-                    setMessages((prev) => [
-                        ...prev,
-                        { ...errMsg, _contactId: isGroup ? contact.id : undefined },
-                    ]);
-                    accumulated = '';
-                    setStreamingText('');
-                },
-            });
+                }
+                ttsBuffer = rest.slice(lastIndex);
+            };
+
+            const onDone = async (fullText) => {
+                const saved = await addMessage(activeThread.id, 'assistant', fullText || accumulated);
+                setMessages((prev) => [
+                    ...prev,
+                    { ...saved, _contactId: isGroup ? contact.id : undefined },
+                ]);
+                accumulated = '';
+                setStreamingText('');
+
+                // Speak any remaining fragment
+                const remaining = ttsBuffer.trim();
+                ttsBuffer = '';
+                if (remaining.length > 2 && ttsSettings) {
+                    ttsQueue.push(remaining);
+                    flushTTSQueue();
+                }
+            };
+
+            const onError = async (err) => {
+                ttsBuffer = '';
+                ttsQueue.length = 0;
+                const errMsg = await addMessage(activeThread.id, 'assistant', `⚠️ ${err.message}`);
+                setMessages((prev) => [
+                    ...prev,
+                    { ...errMsg, _contactId: isGroup ? contact.id : undefined },
+                ]);
+                accumulated = '';
+                setStreamingText('');
+            };
+
+            // ── Route: use LimenLT if enabled for this contact ─────────────────
+            if (contact.limenEnabled) {
+                await streamChatWithLimen({
+                    contact,
+                    settings,
+                    userText: text,
+                    history: llmMessages,
+                    imageDataUrl: imageToSend,
+                    onToken,
+                    onDone,
+                    onError,
+                    onStaminaChange: (s) => setStamina(s),
+                });
+            } else {
+                await streamChat({
+                    contact,
+                    settings,
+                    messages: llmMessages,
+                    imageDataUrl: imageToSend,
+                    onToken,
+                    onDone,
+                    onError,
+                });
+            }
         }
 
         setStreaming(false);
@@ -730,6 +796,15 @@ export default function ChatView() {
                                 {threadContacts.map((c) => c.avatar).join(' ')} {threadTitle(activeThread)}
                             </span>
                         </button>
+
+                        {/* LimenLT stamina bar — only when limen active */}
+                        {threadContacts?.[0]?.limenEnabled && (
+                            <StaminaBar
+                                stamina={stamina}
+                                onSleep={handleSleep}
+                                isSleeping={isSleeping}
+                            />
+                        )}
 
                         {/* ⋯ menu */}
                         <div className={styles.menuWrapper} ref={menuWrapperRef}>

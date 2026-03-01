@@ -4,7 +4,8 @@ import Dexie from 'dexie';
  * AlwaysMessengerDB — central IndexedDB instance (via Dexie.js).
  *
  * Schema version history:
- *   v1 (Phase 1) — contacts, threads, messages, settings, summaries
+ *   v1 (Phase 1)  — contacts, threads, messages, settings, summaries
+ *   v2 (LimenLT) — interactions, polaroids (per-contact LimenLT storage)
  *
  * When adding columns in future phases, increment the version and add
  * a new `.stores()` call to the upgrade block. Never modify v1 inline.
@@ -52,6 +53,22 @@ db.version(1).stores({
     summaries: '++id, threadId, mode, content, messageRange, createdAt',
 });
 
+db.version(2).stores({
+    /**
+     * interactions — LimenLT short-term interaction log, scoped per contact.
+     * limenId: the ID assigned by LimenLT (uuid)
+     * compressed: 1 | 0 — whether this row has been folded into systemInstruction
+     */
+    interactions: '++id, contactId, limenId, role, content, timestamp, resonanceScore, compressed',
+
+    /**
+     * polaroids — LimenLT long-term episodic memory archive, scoped per contact.
+     * limenId: the ID assigned by LimenLT
+     * back: JSON PolaroidBack — used by ResonanceScorer
+     */
+    polaroids: '++id, contactId, limenId, front, tokenCost, createdAt',
+});
+
 /**
  * Seed default global settings on first launch.
  * Uses put() so re-running is idempotent.
@@ -69,6 +86,7 @@ export async function seedDefaultSettings() {
         { key: 'asrModel', value: 'whisper-1' },
         { key: 'ttsVoice', value: 'af_heart' },
         { key: 'ttsModel', value: 'kokoro' },
+        { key: 'limenStaminaEnabled', value: true },
     ];
 
     await db.transaction('rw', db.settings, async () => {

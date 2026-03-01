@@ -3,6 +3,8 @@ import Sheet from './ui/Sheet';
 import SegmentedControl from './ui/SegmentedControl';
 import EmojiPicker from './ui/EmojiPicker';
 import { createContact, updateContact, deleteContact } from '../db/contactsDb';
+import { bootstrapLimenMigration, activateNewContact } from '../llm/limenBootstrap.js';
+import { resetEngine } from '../llm/limenRegistry.js';
 import useAppStore from '../state/useAppStore';
 import styles from './ContactSheet.module.css';
 
@@ -46,6 +48,8 @@ const DEFAULT_FORM = {
     systemInstruction: '',
     llmConfig: { ...DEFAULT_LLM_CONFIG },
     ttsConfig: { ...DEFAULT_TTS_CONFIG },
+    limenEnabled: true,   // on by default for new contacts
+    memory: { bootsector: '', systemInstruction: '', compressionCycleCount: 0 },
 };
 
 export default function ContactSheet({ open, onClose, contactId }) {
@@ -62,6 +66,7 @@ export default function ContactSheet({ open, onClose, contactId }) {
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [error, setError] = useState('');
+    const [migrating, setMigrating] = useState(false);
 
     // Hydrate form when editing an existing contact
     useEffect(() => {
@@ -74,6 +79,12 @@ export default function ContactSheet({ open, onClose, contactId }) {
                     systemInstruction: contact.systemInstruction ?? '',
                     llmConfig: { ...DEFAULT_LLM_CONFIG, ...(contact.llmConfig ?? {}) },
                     ttsConfig: { ...DEFAULT_TTS_CONFIG, ...(contact.ttsConfig ?? {}) },
+                    limenEnabled: contact.limenEnabled ?? false,  // existing contacts default off
+                    memory: {
+                        bootsector: contact.memory?.bootsector ?? '',
+                        systemInstruction: contact.memory?.systemInstruction ?? '',
+                        compressionCycleCount: contact.memory?.compressionCycleCount ?? 0,
+                    },
                 });
             }
         } else if (open && !isEdit) {
@@ -83,6 +94,7 @@ export default function ContactSheet({ open, onClose, contactId }) {
         setShowKey(false);
         setConfirmDelete(false);
         setError('');
+        setMigrating(false);
     }, [open, contactId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Field helpers ─────────────────────────────────────────────
@@ -91,6 +103,8 @@ export default function ContactSheet({ open, onClose, contactId }) {
         setForm((f) => ({ ...f, llmConfig: { ...f.llmConfig, [key]: value } }));
     const setTtsField = (key, value) =>
         setForm((f) => ({ ...f, ttsConfig: { ...f.ttsConfig, [key]: value } }));
+    const setMemoryField = (key, value) =>
+        setForm((f) => ({ ...f, memory: { ...f.memory, [key]: value } }));
 
     // ── Actions ───────────────────────────────────────────────────
     async function handleSave() {
@@ -98,12 +112,41 @@ export default function ContactSheet({ open, onClose, contactId }) {
         setError('');
         setSaving(true);
         try {
+            // Merge bootsector from form.memory into the saved memory block
+            const memoryToSave = {
+                ...(form.memory ?? {}),
+                bootsector: form.memory?.bootsector?.trim() || form.systemInstruction?.trim() || '',
+                bootstrapped: false,  // will be set true by migration/activation
+            };
+            const payload = { ...form, memory: memoryToSave };
+
             if (isEdit) {
-                await updateContact(contactId, form);
-                upsertContact({ id: contactId, ...form });
+                const previousState = contacts.find((c) => c.id === contactId);
+                const wasLimenOff = !previousState?.limenEnabled;
+                await updateContact(contactId, payload);
+                upsertContact({ id: contactId, ...payload });
+                // If limen was just turned on for an existing contact, run Bootstrap Migration
+                if (form.limenEnabled && wasLimenOff) {
+                    resetEngine(contactId);
+                    // Non-blocking migration — runs in background after sheet closes
+                    const settings = useAppStore.getState().settings;
+                    bootstrapLimenMigration({ id: contactId, ...payload }, settings).catch(
+                        (e) => console.warn('[Limen] Bootstrap migration failed:', e.message),
+                    );
+                } else if (!form.limenEnabled) {
+                    resetEngine(contactId);
+                }
             } else {
-                const newId = await createContact(form);
-                upsertContact({ id: newId, ...form });
+                const newId = await createContact(payload);
+                const newContact = { id: newId, ...payload };
+                upsertContact(newContact);
+                // Activate new contact (no history to migrate)
+                if (form.limenEnabled) {
+                    const settings = useAppStore.getState().settings;
+                    activateNewContact(newContact, settings).catch(
+                        (e) => console.warn('[Limen] Activation failed:', e.message),
+                    );
+                }
             }
             onClose();
         } catch (err) {
@@ -267,7 +310,7 @@ export default function ContactSheet({ open, onClose, contactId }) {
 
                 {/* ── TTS Override ────────────────────────────────── */}
                 <div className={styles.sectionHeader}>TTS Override
-                    <span className={styles.sectionNote}> — leave blank to use global defaults</span>
+                    <span className={styles.sectionNote}> — leave blank to use global defaults</span>
                 </div>
 
                 <div className={styles.fieldGroup}>
@@ -296,6 +339,51 @@ export default function ContactSheet({ open, onClose, contactId }) {
                         inputMode="url"
                     />
                 </div>
+
+                {/* ── LimenLT Memory ──────────────────────────────── */}
+                <div className={styles.sectionHeader}>Memory (LimenLT)
+                    <span className={styles.sectionNote}> — cognitive context engine</span>
+                </div>
+
+                <div className={styles.fieldGroup}>
+                    <label className={styles.label}>
+                        <input
+                            id="contact-limen-enabled"
+                            type="checkbox"
+                            checked={!!form.limenEnabled}
+                            onChange={(e) => setField('limenEnabled', e.target.checked)}
+                            style={{ marginRight: 8 }}
+                        />
+                        Enable LimenLT Memory Engine
+                    </label>
+                    {isEdit && !contacts.find((c) => c.id === contactId)?.limenEnabled && form.limenEnabled && (
+                        <p className={styles.sectionNote} style={{ marginTop: 4 }}>
+                            💡 A Bootstrap Migration will run when you save — the contact&apos;s history will be digested into the memory system.
+                        </p>
+                    )}
+                </div>
+
+                {form.limenEnabled && (
+                    <div className={styles.fieldGroup}>
+                        <label htmlFor="contact-bootsector" className={styles.label}>
+                            Bootsector
+                            <span className={styles.sectionNote}> — immutable identity seed (Tamarian-style)</span>
+                        </label>
+                        <textarea
+                            id="contact-bootsector"
+                            className={styles.textarea}
+                            placeholder={'e.g. "The Mechanic, under a single lamp. Speaks in short, blunt sentences. Never breaks character."'}
+                            value={form.memory?.bootsector ?? ''}
+                            onChange={(e) => setMemoryField('bootsector', e.target.value)}
+                            rows={3}
+                        />
+                        {isEdit && (
+                            <p className={styles.sectionNote} style={{ marginTop: 4 }}>
+                                Compression cycles: {form.memory?.compressionCycleCount ?? 0}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* ── Error ──────────────────────────────────────── */}
                 {error && <p className={styles.error}>{error}</p>}

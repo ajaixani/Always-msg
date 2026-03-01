@@ -1,8 +1,16 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import path from 'path';
 
 export default defineConfig({
+    resolve: {
+        alias: {
+            // Point to LimenLT source directly so Vite/esbuild compile the
+            // TypeScript in-process — no dist/ build required.
+            limenlt: path.resolve(__dirname, '../../LimenLT/src/index.ts'),
+        },
+    },
     plugins: [
         react(),
         VitePWA({

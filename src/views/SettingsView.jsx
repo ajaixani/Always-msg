@@ -347,6 +347,47 @@ export default function SettingsView() {
                     />
                 </div>
             </section>
+
+            {/* ─────────────── Memory (LimenLT) ────────────────── */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Memory (LimenLT)</h2>
+                <p className={styles.sectionNote}>
+                    Cognitive memory engine settings. Individual contacts configure Bootsector and opt-in via the Contact Sheet.
+                </p>
+
+                <div className={styles.field}>
+                    <label className={styles.label}>
+                        <input
+                            id="settings-limen-stamina"
+                            type="checkbox"
+                            checked={settings.limenStaminaEnabled !== false}
+                            onChange={(e) => update('limenStaminaEnabled', e.target.checked)}
+                            style={{ marginRight: 8 }}
+                        />
+                        Enable Stamina Meter
+                    </label>
+                    <p className={styles.sectionNote} style={{ marginTop: 4 }}>
+                        Tracks cognitive fatigue. When stamina reaches 0%, a sleep cycle is triggered automatically to consolidate memory.
+                    </p>
+                </div>
+
+                <div className={styles.field}>
+                    <button
+                        className={styles.testBtn}
+                        id="settings-limen-reset"
+                        type="button"
+                        onClick={async () => {
+                            const { resetAllEngines } = await import('../llm/limenRegistry.js');
+                            resetAllEngines();
+                        }}
+                    >
+                        Hard Reset All Engines
+                    </button>
+                    <p className={styles.sectionNote} style={{ marginTop: 4 }}>
+                        Destroys all in-memory engine instances. They will be recreated on the next message. Does not delete persisted memories or Polaroids.
+                    </p>
+                </div>
+            </section>
         </div>
     );
 }
