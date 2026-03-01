@@ -11,7 +11,7 @@
  *   vad.destroy();
  */
 
-import { micVAD } from "@ricky0123/vad-web";
+import { MicVAD } from "@ricky0123/vad-web";
 
 const POLL_INTERVAL_MS = 30; // how often to compute RMS (ms) for visualizer
 
@@ -32,7 +32,7 @@ export async function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSp
     // Use Neural VAD via AudioWorklet
     let myvad;
     try {
-        myvad = await micVAD.new({
+        myvad = await MicVAD.new({
             stream,
             positiveSpeechThreshold: 0.5, // Sensitivity for speech detection
             minSpeechFrames: 7,           // ~200ms (prevent clicks/pops)
