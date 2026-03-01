@@ -140,6 +140,7 @@ export default function ChatView() {
     const ttsHandleRef = useRef(null);   // current TTS play handle → .stop()
     const fileInputRef = useRef(null);   // hidden file input for image attach
     const cameraStreamRef = useRef(null); // live camera MediaStream
+    const handleSendRef = useRef(null); // mutable ref to always point to the freshest handleSend
 
     // ── Image attachment state (Phase 9) ────────────────────────────
     const [pendingImage, setPendingImage] = useState(null); // data URL | null
@@ -264,7 +265,7 @@ export default function ChatView() {
             // Web Speech API path: recognition runs until stop() is called
             speechSessionRef.current = createSpeechSession({
                 onResult: (transcript) => {
-                    if (transcript) handleSend(transcript);
+                    if (transcript) handleSendRef.current(transcript);
                     speechSessionRef.current = null;
                 },
                 onError: (err) => {
@@ -301,7 +302,7 @@ export default function ChatView() {
                 const blob = await recorderRef.current.stop();
                 recorderRef.current = null;
                 const transcript = await transcribeBlob(blob, settings);
-                if (transcript) handleSend(transcript);
+                if (transcript) handleSendRef.current(transcript);
             } catch (err) {
                 setMicError(err.message);
             }
@@ -370,7 +371,7 @@ export default function ChatView() {
 
             recognition.onresult = (event) => {
                 const finalTranscript = event.results[0][0].transcript;
-                if (finalTranscript.trim()) handleSend(finalTranscript.trim());
+                if (finalTranscript.trim()) handleSendRef.current(finalTranscript.trim());
             };
 
             recognition.onerror = (event) => {
@@ -418,7 +419,7 @@ export default function ChatView() {
             function startSession() {
                 session = createSpeechSession({
                     onResult: (t) => {
-                        if (t) handleSend(t);
+                        if (t) handleSendRef.current(t);
                         session = null;
                         if (!liveMuted) startSession(); // loop for the next utterance
                     },
@@ -446,7 +447,7 @@ export default function ChatView() {
                         try {
                             const blob = await blobPromise;
                             const text = await transcribeBlob(blob, settings);
-                            if (text) handleSend(text);
+                            if (text) handleSendRef.current(text);
                         } catch (err) { setMicError(err.message); }
 
                         // Change C: restart recorder on the shared stream for the next utterance.
@@ -646,6 +647,11 @@ export default function ChatView() {
         await refreshThreads();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeThread, threadContacts, isStreaming, settings, pendingImage]);
+
+    // Keep handleSendRef up to date with the latest closure
+    useEffect(() => {
+        handleSendRef.current = handleSend;
+    }, [handleSend]);
 
     /* ── Attach image from file picker ─────────────────────────────── */
     const handleAttachFile = useCallback(() => {
