@@ -74,6 +74,13 @@ export default function ChatView() {
     const [isSleeping, setIsSleeping] = useState(false);
     const staminaPollRef = useRef(null);
 
+    // Contacts in the active thread (moved up to avoid initialization error)
+    const threadContacts = activeThread
+        ? String(activeThread.contactIds).split(',').map(Number)
+            .map((id) => contacts.find((c) => c.id === id))
+            .filter(Boolean)
+        : [];
+
     // Poll stamina every 5 s when a limen-enabled contact is active
     useEffect(() => {
         clearInterval(staminaPollRef.current);
@@ -148,13 +155,6 @@ export default function ChatView() {
         saveSetting('activeMode', next);
         setLiveMuted(false); // reset mute on mode switch
     }, [settings?.activeMode, setSetting]);
-
-    // Contacts in the active thread
-    const threadContacts = activeThread
-        ? String(activeThread.contactIds).split(',').map(Number)
-            .map((id) => contacts.find((c) => c.id === id))
-            .filter(Boolean)
-        : [];
 
     // ── Vision capability check ──────────────────────────────────────
     function isVisionCapable(contact) {
