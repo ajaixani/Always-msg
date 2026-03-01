@@ -8,7 +8,7 @@ export default defineConfig({
         alias: {
             // Point to LimenLT source directly so Vite/esbuild compile the
             // TypeScript in-process — no dist/ build required.
-            limenlt: path.resolve(__dirname, '../../LimenLT/src/index.ts'),
+            limenlt: path.resolve(__dirname, '../LimenLT/src/index.ts'),
         },
     },
     plugins: [
