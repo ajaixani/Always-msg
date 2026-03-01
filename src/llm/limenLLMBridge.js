@@ -24,8 +24,7 @@ export function makeLLMService(contact, settings) {
                 contact,
                 settings,
                 messages: [{ role: 'user', content: prompt }],
-                promptKey: 'polaroid',
-                customPrompt: prompt,
+                customPrompt: 'You are a cognitive memory engine. Follow the distillation instructions provided exactly.',
             });
         },
     };

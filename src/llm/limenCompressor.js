@@ -61,7 +61,7 @@ export async function evaluateAndCompress(contact, settings) {
             contact,
             settings,
             messages: [{ role: 'user', content: compressionPrompt }],
-            customPrompt: compressionPrompt,
+            customPrompt: 'You are a cognitive memory compressor. Follow the extraction instructions provided exactly.',
         });
 
         // Atomic DB update: write new systemInstruction + increment counter
