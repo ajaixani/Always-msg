@@ -555,10 +555,15 @@ export default function ChatView() {
                         flushTTSQueue();
                     });
             }
-
+            let rAF = null;
             const onToken = (chunk) => {
                 accumulated += chunk;
-                setStreamingText(accumulated);
+                if (!rAF) {
+                    rAF = requestAnimationFrame(() => {
+                        setStreamingText(accumulated);
+                        rAF = null;
+                    });
+                }
 
                 // ── Sentence-streaming TTS ───────────────────────────────
                 if (!ttsSettings) return;
@@ -579,6 +584,7 @@ export default function ChatView() {
             };
 
             const onDone = async (fullText) => {
+                if (rAF) { cancelAnimationFrame(rAF); rAF = null; }
                 const saved = await addMessage(activeThread.id, 'assistant', fullText || accumulated);
                 setMessages((prev) => [
                     ...prev,
@@ -597,6 +603,7 @@ export default function ChatView() {
             };
 
             const onError = async (err) => {
+                if (rAF) { cancelAnimationFrame(rAF); rAF = null; }
                 ttsBuffer = '';
                 ttsQueue.length = 0;
                 const errMsg = await addMessage(activeThread.id, 'assistant', `⚠️ ${err.message}`);

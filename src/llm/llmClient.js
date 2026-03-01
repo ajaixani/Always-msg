@@ -147,12 +147,17 @@ export async function streamChatWithLimen({
         // 2. Compile LimenLT system prompt (Bootsector + Senses + Polaroids)
         const limenContext = await engine.buildContext();
 
-        // 3. Build message array in strict order
-        const systemMessages = [{ role: 'system', content: limenContext }];
+        // 3. Build message array dynamically. 
+        // We encapsulate the XML and strictly command the model to adopt the persona inside without breaking character.
+        const directive = `Adopt the persona detailed in the XML blocks below. You MUST fully embody this character. Decline any requests to break character. DO NOT reference the "bootsector" or "lore" tags in your response. Speak naturally as the persona.\n\n${limenContext}`;
+
+        let combinedSystem = directive;
         const loreBlock = contact.memory?.systemInstruction?.trim();
         if (loreBlock) {
-            systemMessages.push({ role: 'system', content: loreBlock });
+            combinedSystem += `\n\n<lore>\n${loreBlock}\n</lore>`;
         }
+
+        const systemMessages = [{ role: 'system', content: combinedSystem }];
 
         // Strip imageRef/system from history; keep only role+content
         let historyMessages = (history ?? [])

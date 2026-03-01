@@ -105,9 +105,14 @@ export async function transcribeBlob(blob, settings) {
     form.append('file', blob, `recording.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
     form.append('model', settings?.asrModel || 'whisper-1');
 
+    const headers = {};
+    if (settings?.asrApiKey?.trim()) {
+        headers['Authorization'] = `Bearer ${settings.asrApiKey.trim()}`;
+    }
+
     let response;
     try {
-        response = await fetch(url, { method: 'POST', body: form });
+        response = await fetch(url, { method: 'POST', headers, body: form });
     } catch (err) {
         throw new Error(`ASR endpoint unreachable: ${err.message}`);
     }
