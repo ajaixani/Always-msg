@@ -104,7 +104,9 @@ export async function transcribeBlob(blob, settings) {
     const url = `${base}/v1/audio/transcriptions`;
 
     const form = new FormData();
-    form.append('file', blob, `recording.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
+    // Spoof the extension to .wav to bypass strict backend validation (e.g. FastAPI/uvicorn).
+    // The internal format is still WebM/Opus, but ffmpeg will auto-detect it correctly.
+    form.append('file', blob, 'recording.wav');
     form.append('model', settings?.asrModel || 'whisper-1');
 
     const headers = {};

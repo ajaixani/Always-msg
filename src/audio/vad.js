@@ -12,7 +12,9 @@
  */
 
 import * as ort from "onnxruntime-web";
-import { MicVAD } from "@ricky0123/vad-web";
+import * as vadModule from "@ricky0123/vad-web";
+
+const MicVAD = vadModule.MicVAD ?? vadModule.default?.MicVAD;
 
 // Configure ONNX Runtime to load WASM binaries from the local public/ directory.
 // The .wasm and .mjs files from onnxruntime-web are copied into public/ so Vite

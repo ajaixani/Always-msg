@@ -9,6 +9,9 @@ export default defineConfig({
             // Point to LimenLT source directly so Vite/esbuild compile the
             // TypeScript in-process — no dist/ build required.
             limenlt: path.resolve(__dirname, '../LimenLT/src/index.ts'),
+            // Point vad-web to its pre-built UMD bundle to avoid Vite choking on 
+            // deep CJS dynamic requires inside the package.
+            '@ricky0123/vad-web': path.resolve(__dirname, 'node_modules/@ricky0123/vad-web/dist/bundle.min.js'),
         },
     },
     plugins: [
@@ -67,10 +70,8 @@ export default defineConfig({
         }),
     ],
     optimizeDeps: {
-        // Prevent Vite from pre-bundling these packages.
-        // onnxruntime-web and vad-web dynamically load WASM files at runtime
-        // using relative paths. Vite's optimizer rewrites those paths and breaks
-        // the loading. Excluding them preserves the original resolution behaviour.
-        exclude: ['onnxruntime-web', '@ricky0123/vad-web'],
+        // Exclude onnxruntime-web to prevent Vite from pre-bundling it, which
+        // breaks its internal dynamic imports to sibling .mjs files.
+        exclude: ['onnxruntime-web'],
     },
 });
