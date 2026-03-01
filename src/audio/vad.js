@@ -11,7 +11,12 @@
  *   vad.destroy();
  */
 
+import * as ort from "onnxruntime-web";
 import { MicVAD } from "@ricky0123/vad-web";
+
+// Configure ONNX Runtime to load WASM binaries from CDN
+// (Vite can't serve them properly from within node_modules out of the box)
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/";
 
 const POLL_INTERVAL_MS = 30; // how often to compute RMS (ms) for visualizer
 
@@ -38,7 +43,7 @@ export async function createVAD({ stream, sensitivity = 0.5, onSpeechStart, onSp
             minSpeechFrames: 7,           // ~200ms (prevent clicks/pops)
             redemptionFrames: 50,         // ~1500ms (thinking pauses before onSpeechEnd)
             // Explicitly load model + worklet from CDN to avoid Vite serving issues
-            modelURL: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/silero_vad_legacy.onnx',
+            baseAssetPath: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/',
             workletURL: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js',
             onSpeechStart: () => {
                 speaking = true;
